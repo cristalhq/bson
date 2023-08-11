@@ -14,3 +14,30 @@ type Marshaler interface {
 type Unmarshaler interface {
 	UnmarshalBSON([]byte) error
 }
+
+// A is a BSON array.
+//
+// Example:
+//
+//	bson.A{"hello", "world", 3.14159, bson.D{{"foo", 12345}}}
+type A []any
+
+// D is an ordered representation of a BSON document.
+//
+// Example usage:
+//
+//	bson.D{{"hello", "world"}, {"foo", "bar"}, {"pi", 3.14159}}
+type D []e
+
+// e represents a BSON element for a D. It is usually used inside a D.
+type e struct {
+	K string
+	V any
+}
+
+// M is an unordered representation of a BSON document.
+//
+// Example usage:
+//
+//	bson.M{"hello": "world", "foo": "bar", "pi": 3.14159}
+type M map[string]any
