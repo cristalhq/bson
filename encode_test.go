@@ -2,6 +2,7 @@ package bson
 
 import (
 	"bytes"
+	"math"
 	"testing"
 )
 
@@ -54,5 +55,40 @@ func TestEncodeString(t *testing.T) {
 	err = enc.Encode("")
 	mustOk(t, err)
 	wantBytes(t, buf.Bytes(), "0100000000")
+	buf.Reset()
+}
+
+func TestEncodeNumbers(t *testing.T) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+
+	err := enc.Encode(float64(3.14159))
+	mustOk(t, err)
+	wantBytes(t, buf.Bytes(), "6e861bf0f9210940")
+	buf.Reset()
+
+	err = enc.Encode(float64(0))
+	mustOk(t, err)
+	wantBytes(t, buf.Bytes(), "0000000000000000")
+	buf.Reset()
+
+	err = enc.Encode(math.NaN())
+	mustOk(t, err)
+	wantBytes(t, buf.Bytes(), "010000000000f87f")
+	buf.Reset()
+
+	err = enc.Encode(math.Inf(+1))
+	mustOk(t, err)
+	wantBytes(t, buf.Bytes(), "000000000000f07f")
+	buf.Reset()
+
+	err = enc.Encode(math.Inf(-1))
+	mustOk(t, err)
+	wantBytes(t, buf.Bytes(), "000000000000f0ff")
+	buf.Reset()
+
+	err = enc.Encode(42.13)
+	mustOk(t, err)
+	wantBytes(t, buf.Bytes(), "713d0ad7a3104540")
 	buf.Reset()
 }
