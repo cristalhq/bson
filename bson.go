@@ -1,9 +1,20 @@
 package bson
 
+import "bytes"
+
 // Marshaler is the interface implemented by types that
 // can marshal themselves into valid BSON.
 type Marshaler interface {
 	MarshalBSON() ([]byte, error)
+}
+
+// Marshal returns bencode encoding of v.
+func Marshal(v any) ([]byte, error) {
+	buf := &bytes.Buffer{}
+	if err := NewEncoder(buf).Encode(v); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
 }
 
 // Unmarshaler is the interface implemented by types that
