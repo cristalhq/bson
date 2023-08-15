@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math"
 )
 
 // Encoder writes BSON values to an output stream.
@@ -62,6 +63,11 @@ func (e *Encoder) marshal(v any) error {
 	case int64:
 		var b [8]byte
 		binary.LittleEndian.PutUint64(b[:], uint64(v))
+		e.buf.Write(b[:])
+
+	case float64:
+		var b [8]byte
+		binary.LittleEndian.PutUint64(b[:], math.Float64bits(float64(v)))
 		e.buf.Write(b[:])
 
 	case bool:
