@@ -40,6 +40,20 @@ func (e *Encoder) marshal(v any) error {
 		}
 		e.buf.Write(raw)
 
+	case []byte:
+		var b [4]byte
+		binary.LittleEndian.PutUint32(b[:], uint32(len(v)+1))
+		e.buf.Write(b[:])
+		e.buf.WriteByte(0x80) // TODO(cristaloleg): better binary type?
+		e.buf.Write(v)
+
+	case string:
+		var b [4]byte
+		binary.LittleEndian.PutUint32(b[:], uint32(len(v)+1))
+		e.buf.Write(b[:])
+		e.buf.Write([]byte(v))
+		e.buf.WriteByte(0)
+
 	case int32:
 		var b [4]byte
 		binary.LittleEndian.PutUint32(b[:], uint32(v))

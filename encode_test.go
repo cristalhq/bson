@@ -24,3 +24,35 @@ func TestEncode(t *testing.T) {
 	wantBytes(t, buf.Bytes(), "01")
 	buf.Reset()
 }
+
+func TestEncodeBytes(t *testing.T) {
+	var err error
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+
+	err = enc.Encode([]byte("foo"))
+	mustOk(t, err)
+	wantBytes(t, buf.Bytes(), "0400000080666f6f")
+	buf.Reset()
+
+	err = enc.Encode([]byte{0x00})
+	mustOk(t, err)
+	wantBytes(t, buf.Bytes(), "020000008000")
+	buf.Reset()
+}
+
+func TestEncodeString(t *testing.T) {
+	var err error
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+
+	err = enc.Encode("foo")
+	mustOk(t, err)
+	wantBytes(t, buf.Bytes(), "04000000666f6f00")
+	buf.Reset()
+
+	err = enc.Encode("")
+	mustOk(t, err)
+	wantBytes(t, buf.Bytes(), "0100000000")
+	buf.Reset()
+}
