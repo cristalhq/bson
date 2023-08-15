@@ -1,6 +1,23 @@
 package bson
 
-import "testing"
+import (
+	"encoding/hex"
+	"testing"
+)
+
+func mustOk(tb testing.TB, err error) {
+	tb.Helper()
+
+	if err != nil {
+		tb.Fatal(err)
+	}
+}
+
+func wantBytes(tb testing.TB, have []byte, want string) {
+	tb.Helper()
+
+	mustEqual(tb, hex.EncodeToString(have), want)
+}
 
 func mustEqual[T comparable](tb testing.TB, have, want T) {
 	tb.Helper()
