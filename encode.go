@@ -33,8 +33,6 @@ func (enc *Encoder) Encode(v any) error {
 
 func (enc *Encoder) marshal(v any) error {
 	switch v := v.(type) {
-	case MarshalerTo:
-		return v.MarshalBSON(enc.buf)
 	case Marshaler:
 		raw, err := v.MarshalBSON()
 		if err != nil {
