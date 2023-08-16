@@ -2,11 +2,9 @@ package bson
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
-	"math"
-	"time"
+	"strconv"
 )
 
 // Encoder writes BSON values to an output stream.
@@ -41,50 +39,72 @@ func (e *Encoder) marshal(v any) error {
 			return err
 		}
 		e.buf.Write(raw)
-
-	case []byte:
-		var b [4]byte
-		binary.LittleEndian.PutUint32(b[:], uint32(len(v)+1))
-		e.buf.Write(b[:])
-		e.buf.WriteByte(0x80) // TODO(cristaloleg): better binary type?
-		e.buf.Write(v)
-
-	case string:
-		var b [4]byte
-		binary.LittleEndian.PutUint32(b[:], uint32(len(v)+1))
-		e.buf.Write(b[:])
-		e.buf.Write([]byte(v))
-		e.buf.WriteByte(0)
-
-	case time.Time:
-		var b [8]byte
-		binary.LittleEndian.PutUint64(b[:], uint64(v.UnixMilli()))
-		e.buf.Write(b[:])
-
-	case int32:
-		var b [4]byte
-		binary.LittleEndian.PutUint32(b[:], uint32(v))
-		e.buf.Write(b[:])
-
-	case int64:
-		var b [8]byte
-		binary.LittleEndian.PutUint64(b[:], uint64(v))
-		e.buf.Write(b[:])
-
-	case float64:
-		var b [8]byte
-		binary.LittleEndian.PutUint64(b[:], math.Float64bits(float64(v)))
-		e.buf.Write(b[:])
-
-	case bool:
-		var b [1]byte
-		if v {
-			b[0] = 1
-		}
-		e.buf.Write(b[:])
-
+	case A:
+		e.marshalArray(v)
+	case D:
+		e.marshalDoc(v)
+	case M:
+		e.marshalDoc(v.AsD())
 	default:
 		return fmt.Errorf("type %T is not supported yet", v)
 	}
 	return nil
+}
+
+func (enc *Encoder) marshalArray(arr A) error {
+	doc := make(D, len(arr))
+	for i := range arr {
+		doc[i] = e{
+			K: strconv.Itoa(i),
+			V: arr[i],
+		}
+	}
+	return enc.marshalDoc(doc)
+}
+
+func (e *Encoder) marshalDoc(doc D) error {
+	// TODO(cristaloleg): prealloc or smarter way.
+	var elist bytes.Buffer
+
+	for i := range doc {
+		pair := doc[i]
+		key := doc[i].K
+
+		switch v := pair.V.(type) {
+		case string:
+			e.writeKey(&elist, TypeString, key)
+			b := putUint32(uint32(len(v) + 1))
+			elist.Write(b[:])
+			elist.WriteString(v)
+			elist.WriteByte(0)
+
+		case int32:
+			e.writeKey(&elist, TypeInt32, key)
+			b := putUint32(uint32(v))
+			elist.Write(b[:])
+
+		case int64:
+			e.writeKey(&elist, TypeInt64, key)
+			b := putUint64(uint64(v))
+			elist.Write(b[:])
+
+		case bool:
+			e.writeKey(&elist, TypeBool, key)
+			elist.WriteByte(putBool(v))
+		}
+	}
+
+	size := 4 + elist.Len() + 1 // header + len + null.
+	b := putUint32(uint32(size))
+	e.buf.Write(b[:])
+
+	io.Copy(e.buf, &elist)
+	e.buf.WriteByte(0)
+	return nil
+}
+
+func (e *Encoder) writeKey(buf *bytes.Buffer, t Type, s string) {
+	buf.WriteByte(byte(t))
+	buf.WriteString(s)
+	buf.WriteByte(0)
 }

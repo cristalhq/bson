@@ -2,118 +2,95 @@ package bson
 
 import (
 	"bytes"
-	"math"
 	"testing"
-	"time"
 )
 
-func TestEncode(t *testing.T) {
+func TestEncodeA(t *testing.T) {
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
 
-	err := enc.Encode(int32(123456789))
-	mustOk(t, err)
-	wantBytes(t, buf.Bytes(), "15cd5b07")
-	buf.Reset()
-
-	err = enc.Encode(int64(123456789123456789))
-	mustOk(t, err)
-	wantBytes(t, buf.Bytes(), "155fd0ac4b9bb601")
-	buf.Reset()
-
-	err = enc.Encode(true)
-	mustOk(t, err)
-	wantBytes(t, buf.Bytes(), "01")
-	buf.Reset()
-}
-
-func TestEncodeBytes(t *testing.T) {
 	var err error
-	var buf bytes.Buffer
-	enc := NewEncoder(&buf)
+	var arr A
 
-	err = enc.Encode([]byte("foo"))
+	arr = A{}
+	err = enc.Encode(arr)
 	mustOk(t, err)
-	wantBytes(t, buf.Bytes(), "0400000080666f6f")
+	wantBytes(t, buf.Bytes(), "0500000000")
 	buf.Reset()
 
-	err = enc.Encode([]byte{0x00})
+	arr = A{int32(30)}
+	err = enc.Encode(arr)
 	mustOk(t, err)
-	wantBytes(t, buf.Bytes(), "020000008000")
+	wantBytes(t, buf.Bytes(), "0c0000001030001e00000000")
+	buf.Reset()
+
+	arr = A{"a", int32(10), "c"}
+	err = enc.Encode(arr)
+	mustOk(t, err)
+	wantBytes(t, buf.Bytes(), "1e0000000230000200000061001031000a00000002320002000000630000")
+	buf.Reset()
+
+	arr = A{"a", int32(10), "c", true, "b", int64(10203040)}
+	err = enc.Encode(arr)
+	mustOk(t, err)
+	wantBytes(t, buf.Bytes(), "360000000230000200000061001031000a00000002320002000000630008330001023400020000006200123500a0af9b000000000000")
 	buf.Reset()
 }
 
-func TestEncodeString(t *testing.T) {
+func TestEncodeD(t *testing.T) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+
 	var err error
-	var buf bytes.Buffer
-	enc := NewEncoder(&buf)
+	var doc D
 
-	err = enc.Encode("foo")
+	doc = D{}
+	err = enc.Encode(doc)
 	mustOk(t, err)
-	wantBytes(t, buf.Bytes(), "04000000666f6f00")
+	wantBytes(t, buf.Bytes(), "0500000000")
 	buf.Reset()
 
-	err = enc.Encode("")
+	doc = D{{"a", int32(10)}}
+	err = enc.Encode(doc)
 	mustOk(t, err)
-	wantBytes(t, buf.Bytes(), "0100000000")
-	buf.Reset()
-}
-
-func TestEncodeNumbers(t *testing.T) {
-	var buf bytes.Buffer
-	enc := NewEncoder(&buf)
-
-	err := enc.Encode(float64(3.14159))
-	mustOk(t, err)
-	wantBytes(t, buf.Bytes(), "6e861bf0f9210940")
+	wantBytes(t, buf.Bytes(), "0c0000001061000a00000000")
 	buf.Reset()
 
-	err = enc.Encode(float64(0))
+	doc = D{{"a", int32(10)}, {"c", true}}
+	err = enc.Encode(doc)
 	mustOk(t, err)
-	wantBytes(t, buf.Bytes(), "0000000000000000")
+	wantBytes(t, buf.Bytes(), "100000001061000a0000000863000100")
 	buf.Reset()
 
-	err = enc.Encode(math.NaN())
+	doc = D{{"a", int32(10)}, {"c", true}, {"b", int64(10203040)}}
+	err = enc.Encode(doc)
 	mustOk(t, err)
-	wantBytes(t, buf.Bytes(), "010000000000f87f")
-	buf.Reset()
-
-	err = enc.Encode(math.Inf(+1))
-	mustOk(t, err)
-	wantBytes(t, buf.Bytes(), "000000000000f07f")
-	buf.Reset()
-
-	err = enc.Encode(math.Inf(-1))
-	mustOk(t, err)
-	wantBytes(t, buf.Bytes(), "000000000000f0ff")
-	buf.Reset()
-
-	err = enc.Encode(42.13)
-	mustOk(t, err)
-	wantBytes(t, buf.Bytes(), "713d0ad7a3104540")
+	wantBytes(t, buf.Bytes(), "1b0000001061000a00000008630001126200a0af9b000000000000")
 	buf.Reset()
 }
 
-func TestEncodeTime(t *testing.T) {
+func TestEncodeM(t *testing.T) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+
 	var err error
-	var buf bytes.Buffer
-	enc := NewEncoder(&buf)
+	var maa M
 
-	var ts time.Time
-	err = enc.Encode(ts)
+	maa = M{"a": int32(10)}
+	err = enc.Encode(maa)
 	mustOk(t, err)
-	wantBytes(t, buf.Bytes(), "0028d3ed7cc7ffff")
+	wantBytes(t, buf.Bytes(), "0c0000001061000a00000000")
 	buf.Reset()
 
-	ts = time.Unix(0, 0)
-	err = enc.Encode(ts)
+	maa = M{"a": int32(10), "c": true}
+	err = enc.Encode(maa)
 	mustOk(t, err)
-	wantBytes(t, buf.Bytes(), "0000000000000000")
+	wantBytes(t, buf.Bytes(), "100000001061000a0000000863000100")
 	buf.Reset()
 
-	ts = time.Date(2023, 8, 17, 10, 20, 30, 0, time.UTC)
-	err = enc.Encode(ts)
+	maa = M{"a": int32(10), "c": true, "b": int64(10203040)}
+	err = enc.Encode(maa)
 	mustOk(t, err)
-	wantBytes(t, buf.Bytes(), "b0cd02038a010000")
+	wantBytes(t, buf.Bytes(), "1b0000001061000a000000126200a0af9b00000000000863000100")
 	buf.Reset()
 }
