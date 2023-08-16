@@ -1,6 +1,9 @@
 package bson
 
-import "bytes"
+import (
+	"bytes"
+	"sort"
+)
 
 // Marshaler is the interface implemented by types that
 // can marshal themselves into valid BSON.
