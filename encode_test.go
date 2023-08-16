@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"math"
 	"testing"
+	"time"
 )
 
 func TestEncode(t *testing.T) {
@@ -90,5 +91,29 @@ func TestEncodeNumbers(t *testing.T) {
 	err = enc.Encode(42.13)
 	mustOk(t, err)
 	wantBytes(t, buf.Bytes(), "713d0ad7a3104540")
+	buf.Reset()
+}
+
+func TestEncodeTime(t *testing.T) {
+	var err error
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+
+	var ts time.Time
+	err = enc.Encode(ts)
+	mustOk(t, err)
+	wantBytes(t, buf.Bytes(), "0028d3ed7cc7ffff")
+	buf.Reset()
+
+	ts = time.Unix(0, 0)
+	err = enc.Encode(ts)
+	mustOk(t, err)
+	wantBytes(t, buf.Bytes(), "0000000000000000")
+	buf.Reset()
+
+	ts = time.Date(2023, 8, 17, 10, 20, 30, 0, time.UTC)
+	err = enc.Encode(ts)
+	mustOk(t, err)
+	wantBytes(t, buf.Bytes(), "b0cd02038a010000")
 	buf.Reset()
 }

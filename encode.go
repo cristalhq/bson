@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"time"
 )
 
 // Encoder writes BSON values to an output stream.
@@ -54,6 +55,11 @@ func (e *Encoder) marshal(v any) error {
 		e.buf.Write(b[:])
 		e.buf.Write([]byte(v))
 		e.buf.WriteByte(0)
+
+	case time.Time:
+		var b [8]byte
+		binary.LittleEndian.PutUint64(b[:], uint64(v.UnixMilli()))
+		e.buf.Write(b[:])
 
 	case int32:
 		var b [4]byte
