@@ -1,6 +1,9 @@
 package bson
 
-import "bytes"
+import (
+	"bytes"
+	"sort"
+)
 
 // Marshaler is the interface implemented by types that
 // can marshal themselves into valid BSON.
@@ -52,3 +55,17 @@ type e struct {
 //
 //	bson.M{"hello": "world", "foo": "bar", "pi": 3.14159}
 type M map[string]any
+
+func (m M) AsD() D {
+	d := make(D, len(m))
+	i := 0
+	for k, v := range m {
+		d[i] = e{K: k, V: v}
+		i++
+	}
+
+	sort.Slice(d, func(i, j int) bool {
+		return d[i].K < d[j].K
+	})
+	return d
+}
