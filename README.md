@@ -4,12 +4,13 @@
 [![pkg-img]][pkg-url]
 [![version-img]][version-url]
 
-BSON for Go.
+Package implements BSON encoding and decoding in Go. See https://bsonspec.org/spec.html
 
 ## Features
 
 * Simple API.
 * Dependency-free.
+* Optimized for speed.
 * Clean and tested code.
 
 See [docs][pkg-url] for more details.

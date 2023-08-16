@@ -11,10 +11,20 @@ type Marshaler interface {
 	MarshalBSON() ([]byte, error)
 }
 
-// Marshal returns bencode encoding of v.
+// Marshal returns BSON encoding of v.
 func Marshal(v any) ([]byte, error) {
 	buf := &bytes.Buffer{}
 	if err := NewEncoder(buf).Encode(v); err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
+
+// MarshalTo returns BSON encoding of v written to dst.
+func MarshalTo(dst []byte, v interface{}) ([]byte, error) {
+	buf := bytes.NewBuffer(dst)
+	enc := &Encoder{buf: buf}
+	if err := enc.marshal(v); err != nil {
 		return nil, err
 	}
 	return buf.Bytes(), nil
