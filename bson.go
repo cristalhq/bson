@@ -26,7 +26,7 @@ func MarshalTo(dst []byte, v any) ([]byte, error) {
 	if err := enc.marshal(v); err != nil {
 		return nil, err
 	}
-	return dst, nil
+	return enc.buf, nil
 }
 
 // Unmarshaler is the interface implemented by types that
