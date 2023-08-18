@@ -21,13 +21,12 @@ func Marshal(v any) ([]byte, error) {
 }
 
 // MarshalTo returns BSON encoding of v written to dst.
-func MarshalTo(dst []byte, v interface{}) ([]byte, error) {
-	buf := bytes.NewBuffer(dst)
-	enc := &Encoder{buf: buf}
+func MarshalTo(dst []byte, v any) ([]byte, error) {
+	enc := &Encoder{buf: dst}
 	if err := enc.marshal(v); err != nil {
 		return nil, err
 	}
-	return buf.Bytes(), nil
+	return enc.buf, nil
 }
 
 // Unmarshaler is the interface implemented by types that
