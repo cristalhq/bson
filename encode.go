@@ -5,7 +5,6 @@ import (
 	"io"
 	"math"
 	"reflect"
-	"sort"
 	"strconv"
 )
 
@@ -62,21 +61,21 @@ func (enc *Encoder) writeMap(v reflect.Value) (int, error) {
 	enc.buf = append(enc.buf, 0, 0, 0, 0)
 	count := 4 + 1 // sizeof(int) + sizeof(\0)
 
-	doc := make(D, v.Len())
-	for i, iter := 0, v.MapRange(); iter.Next(); i++ {
-		doc[i] = e{
-			K: iter.Key().String(),
-			V: iter.Value().Interface(),
+	doc := make(docRefl, v.Len())
+
+	keys := v.MapKeys()
+	for i := range keys {
+		key := keys[i]
+		doc[i] = pairRefl{
+			Key: key.String(),
+			Val: v.MapIndex(key),
 		}
 	}
 
-	// TODO(cristaloleg): use generic sort.
-	sort.Slice(doc, func(i, j int) bool {
-		return doc[i].K < doc[j].K
-	})
+	sortPairRefl(doc)
 
 	for i := 0; i < len(doc); i++ {
-		n, err := enc.writeValue(doc[i].K, reflect.ValueOf(doc[i].V))
+		n, err := enc.writeValue(doc[i].Key, doc[i].Val)
 		if err != nil {
 			return 0, err
 		}
