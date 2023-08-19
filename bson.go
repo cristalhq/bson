@@ -58,6 +58,10 @@ type e struct {
 	V any
 }
 
+func (doc D) Len() int           { return len(doc) }
+func (doc D) Less(i, j int) bool { return doc[j].K < doc[j-1].K }
+func (doc D) Swap(i, j int)      { doc[i], doc[j] = doc[j], doc[i] }
+
 // M is an unordered representation of a BSON document.
 //
 // Example usage:
@@ -73,8 +77,6 @@ func (m M) AsD() D {
 		i++
 	}
 
-	sort.Slice(d, func(i, j int) bool {
-		return d[i].K < d[j].K
-	})
+	sort.Sort(d)
 	return d
 }

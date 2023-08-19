@@ -38,7 +38,6 @@ func TestEncodeA(t *testing.T) {
 }
 
 func TestEncodeD(t *testing.T) {
-	t.Skip()
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
 
