@@ -33,13 +33,9 @@ func (enc *Encoder) Encode(v any) error {
 }
 
 func (enc *Encoder) marshal(v any) error {
-	if v, ok := v.(Marshaler); ok {
-		raw, err := v.MarshalBSON()
-		if err != nil {
-			return err
-		}
-		enc.buf = append(enc.buf, raw...)
-		return nil
+	if doc, ok := v.(D); ok {
+		_, err := enc.writeDoc(doc)
+		return err
 	}
 
 	var err error
@@ -53,6 +49,27 @@ func (enc *Encoder) marshal(v any) error {
 		return fmt.Errorf("type %T is not supported yet", v)
 	}
 	return err
+}
+
+func (enc *Encoder) writeDoc(doc D) (int, error) {
+	start := len(enc.buf)
+	enc.buf = append(enc.buf, 0, 0, 0, 0)
+	count := 4 + 1 // sizeof(int) + sizeof(\0)
+
+	for i := 0; i < len(doc); i++ {
+		n, err := enc.writeValue(doc[i].K, reflect.ValueOf(doc[i].V))
+		if err != nil {
+			return 0, err
+		}
+		count += n
+	}
+
+	enc.buf = append(enc.buf, 0)
+	enc.buf[start] = byte(count)
+	enc.buf[start+1] = byte(count >> 8)
+	enc.buf[start+2] = byte(count >> 16)
+	enc.buf[start+3] = byte(count >> 24)
+	return count, nil
 }
 
 // TODO(cristaloleg): doc[i] value box-unbox can be omitted.
