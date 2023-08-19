@@ -81,16 +81,25 @@ func (enc *Encoder) writeMap(v reflect.Value) (int, error) {
 	count := 4 + 1 // sizeof(int) + sizeof(\0)
 
 	doc := make(docRefl, v.Len())
-
-	keys := v.MapKeys()
-	for i := range keys {
-		key := keys[i]
-		doc[i] = pairRefl{
-			Key: key.String(),
-			Val: v.MapIndex(key),
+	if m, ok := v.Interface().(map[string]any); ok {
+		i := 0
+		for k, v := range m {
+			doc[i] = pairRefl{
+				Key: k,
+				Val: reflect.ValueOf(v),
+			}
+			i++
+		}
+	} else {
+		keys := v.MapKeys()
+		for i := range keys {
+			key := keys[i]
+			doc[i] = pairRefl{
+				Key: key.String(),
+				Val: v.MapIndex(key),
+			}
 		}
 	}
-
 	sortPairRefl(doc)
 
 	for i := 0; i < len(doc); i++ {
@@ -139,15 +148,25 @@ func (enc *Encoder) writeSlice(v reflect.Value) (int, error) {
 	enc.buf = append(enc.buf, 0, 0, 0, 0)
 	count := 4 + 1 // sizeof(int) + sizeof(\0)
 
-	n := v.Len()
-	for i := 0; i < n; i++ {
-		val := v.Index(i)
-
-		n, err := enc.writeValue(strconv.Itoa(i), val)
-		if err != nil {
-			return 0, err
+	if a, ok := v.Interface().([]any); ok {
+		for i := range a {
+			n, err := enc.writeValue(strconv.Itoa(i), reflect.ValueOf(a[i]))
+			if err != nil {
+				return 0, err
+			}
+			count += n
 		}
-		count += n
+	} else {
+		n := v.Len()
+		for i := 0; i < n; i++ {
+			val := v.Index(i)
+
+			n, err := enc.writeValue(strconv.Itoa(i), val)
+			if err != nil {
+				return 0, err
+			}
+			count += n
+		}
 	}
 
 	enc.buf = append(enc.buf, 0)
