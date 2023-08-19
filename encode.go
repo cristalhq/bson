@@ -5,6 +5,7 @@ import (
 	"io"
 	"math"
 	"reflect"
+	"sort"
 	"strconv"
 )
 
@@ -40,9 +41,10 @@ func (enc *Encoder) marshal(v any) error {
 
 	var err error
 	switch rv := reflect.ValueOf(v); rv.Kind() {
-	// TODO(cristaloleg): add reflect.Struct
 	case reflect.Map:
 		_, err = enc.writeMap(rv)
+	case reflect.Struct:
+		_, err = enc.writeStruct(rv)
 	case reflect.Array, reflect.Slice:
 		_, err = enc.writeSlice(rv)
 	default:
@@ -107,6 +109,35 @@ func (enc *Encoder) writeMap(v reflect.Value) (int, error) {
 	return count, nil
 }
 
+func (enc *Encoder) writeStruct(v reflect.Value) (int, error) {
+	start := len(enc.buf)
+	enc.buf = append(enc.buf, 0, 0, 0, 0)
+	count := 4 + 1 // sizeof(int) + sizeof(\0)
+
+	doc := make(docRefl, 0, v.Type().NumField())
+	doc, err := walkStruct(doc, v)
+	if err != nil {
+		return 0, err
+	}
+
+	sort.Sort(doc)
+
+	for i := 0; i < len(doc); i++ {
+		n, err := enc.writeValue(doc[i].Key, doc[i].Val)
+		if err != nil {
+			return 0, err
+		}
+		count += n
+	}
+
+	enc.buf = append(enc.buf, 0)
+	enc.buf[start] = byte(count)
+	enc.buf[start+1] = byte(count >> 8)
+	enc.buf[start+2] = byte(count >> 16)
+	enc.buf[start+3] = byte(count >> 24)
+	return count, nil
+}
+
 func (enc *Encoder) writeSlice(v reflect.Value) (int, error) {
 	start := len(enc.buf)
 	enc.buf = append(enc.buf, 0, 0, 0, 0)
@@ -139,7 +170,6 @@ func (enc *Encoder) writeValue(ename string, v reflect.Value) (int, error) {
 
 	var count int
 	switch v.Kind() {
-	// TODO(cristaloleg): add reflect.Struct
 	case reflect.String:
 		count += enc.writeElem(TypeString, ename)
 		count += enc.writeString(v.String())
@@ -156,14 +186,6 @@ func (enc *Encoder) writeValue(ename string, v reflect.Value) (int, error) {
 		count += enc.writeElem(TypeDouble, ename)
 		count += enc.writeInt64(int64(math.Float64bits(v.Float())))
 
-	case reflect.Array, reflect.Slice:
-		count += enc.writeElem(TypeArray, ename)
-		n, err := enc.writeSlice(v)
-		if err != nil {
-			return 0, err
-		}
-		count += n
-
 	case reflect.Map:
 		count += enc.writeElem(TypeDocument, ename)
 		n, err := enc.writeMap(v)
@@ -172,8 +194,24 @@ func (enc *Encoder) writeValue(ename string, v reflect.Value) (int, error) {
 		}
 		count += n
 
+	case reflect.Struct:
+		count += enc.writeElem(TypeDocument, ename)
+		n, err := enc.writeStruct(v)
+		if err != nil {
+			return 0, err
+		}
+		count += n
+
+	case reflect.Array, reflect.Slice:
+		count += enc.writeElem(TypeArray, ename)
+		n, err := enc.writeSlice(v)
+		if err != nil {
+			return 0, err
+		}
+		count += n
+
 	default:
-		return 0, fmt.Errorf("type %T is not supported", v)
+		return 0, fmt.Errorf("type %v is not supported", v.Kind())
 	}
 	return count, nil
 }
