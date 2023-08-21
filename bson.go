@@ -59,7 +59,7 @@ type e struct {
 }
 
 func (doc D) Len() int           { return len(doc) }
-func (doc D) Less(i, j int) bool { return doc[j].K < doc[j-1].K }
+func (doc D) Less(i, j int) bool { return doc[i].K < doc[j].K }
 func (doc D) Swap(i, j int)      { doc[i], doc[j] = doc[j], doc[i] }
 
 // M is an unordered representation of a BSON document.
