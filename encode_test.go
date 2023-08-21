@@ -121,6 +121,36 @@ func TestEncodeReflectMap(t *testing.T) {
 	buf.Reset()
 }
 
+func TestEncodeReflectStruct(t *testing.T) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+
+	var err error
+	type foo struct {
+		A string `bson:"a-field"`
+		B int    `bson:"-"`
+		C bool   `bson:"c-bool-field,omitempty"`
+		D map[string]int32
+	}
+	var x foo
+
+	err = enc.Encode(x)
+	mustOk(t, err)
+	wantBytes(t, buf.Bytes(), "1b000000034400050000000002612d6669656c6400010000000000")
+	buf.Reset()
+
+	x = foo{
+		A: "123",
+		B: 456,
+		C: true,
+		D: map[string]int32{"a": int32(42)},
+	}
+	err = enc.Encode(x)
+	mustOk(t, err)
+	wantBytes(t, buf.Bytes(), "340000000344000c0000001061002a0000000002612d6669656c6400040000003132330008632d626f6f6c2d6669656c64000100")
+	buf.Reset()
+}
+
 func TestEncodeReflectSlice(t *testing.T) {
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
