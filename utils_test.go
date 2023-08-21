@@ -2,6 +2,7 @@ package bson
 
 import (
 	"encoding/hex"
+	"reflect"
 	"testing"
 )
 
@@ -25,4 +26,20 @@ func mustEqual[T comparable](tb testing.TB, have, want T) {
 	if have != want {
 		tb.Fatalf("\nhave: %+v\nwant: %+v\n", have, want)
 	}
+}
+
+func FuzzFieldTag(f *testing.F) {
+	f.Add("Foo", `bson:"abc123,omitempty"`)
+	f.Add("abcdef", `bson:""`)
+	f.Add("Bar", `bson:",omitempty"`)
+	f.Add("Baz", `bson:"-"`)
+	f.Add("qux", `bson:"oops"`)
+
+	f.Fuzz(func(t *testing.T, name, tag string) {
+		field := reflect.StructField{}
+		field.Name = name
+		field.Tag = reflect.StructTag(tag)
+
+		fieldTag(field, reflect.Value{})
+	})
 }
