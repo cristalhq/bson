@@ -128,7 +128,7 @@ func TestEncodeReflectStruct(t *testing.T) {
 	var err error
 	type foo struct {
 		A string `bson:"a-field"`
-		B int    `bson:"-"`
+		B int32  `bson:"-"`
 		C bool   `bson:"c-bool-field,omitempty"`
 		D map[string]int32
 	}
@@ -136,7 +136,7 @@ func TestEncodeReflectStruct(t *testing.T) {
 
 	err = enc.Encode(x)
 	mustOk(t, err)
-	wantBytes(t, buf.Bytes(), "1b000000034400050000000002612d6669656c6400010000000000")
+	wantBytes(t, buf.Bytes(), "1b00000002612d6669656c64000100000000036400050000000000")
 	buf.Reset()
 
 	x = foo{
@@ -147,7 +147,7 @@ func TestEncodeReflectStruct(t *testing.T) {
 	}
 	err = enc.Encode(x)
 	mustOk(t, err)
-	wantBytes(t, buf.Bytes(), "340000000344000c0000001061002a0000000002612d6669656c6400040000003132330008632d626f6f6c2d6669656c64000100")
+	wantBytes(t, buf.Bytes(), "3400000002612d6669656c6400040000003132330008632d626f6f6c2d6669656c6400010364000c0000001061002a0000000000")
 	buf.Reset()
 }
 
