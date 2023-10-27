@@ -114,11 +114,7 @@ func (enc *Encoder) writeStruct(v reflect.Value) (int, error) {
 	enc.buf = append(enc.buf, 0, 0, 0, 0)
 	count := 4 + 1 // sizeof(int) + sizeof(\0)
 
-	doc := make(docRefl, 0, v.Type().NumField())
-	doc, err := walkStruct(doc, v)
-	if err != nil {
-		return 0, err
-	}
+	doc := getStruct(v).asDoc(v)
 
 	sort.Sort(doc)
 
