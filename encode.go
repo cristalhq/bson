@@ -81,6 +81,7 @@ func (enc *Encoder) writeMap(v reflect.Value) (int, error) {
 	count := 4 + 1 // sizeof(int) + sizeof(\0)
 
 	doc := make(docRefl, v.Len())
+	// TODO(cristaloleg): bson.D and bson.M are not supported.
 	if m, ok := v.Interface().(map[string]any); ok {
 		i := 0
 		for k, v := range m {
@@ -148,6 +149,7 @@ func (enc *Encoder) writeSlice(v reflect.Value) (int, error) {
 	enc.buf = append(enc.buf, 0, 0, 0, 0)
 	count := 4 + 1 // sizeof(int) + sizeof(\0)
 
+	// TODO(cristaloleg): bson.A is not supported.
 	if a, ok := v.Interface().([]any); ok {
 		for i := range a {
 			n, err := enc.writeValue(strconv.Itoa(i), reflect.ValueOf(a[i]))
