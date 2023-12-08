@@ -46,7 +46,10 @@ func (d *Decoder) Decode(v any) error {
 }
 
 func decodeStruct(data []byte, v reflect.Value) error {
-	iter := newReader(data)
+	iter, err := newReader(data)
+	if err != nil {
+		return err
+	}
 
 	for iter.Next() {
 		typ, name, element := iter.Peek()
@@ -144,7 +147,10 @@ func decodeStruct(data []byte, v reflect.Value) error {
 }
 
 func decodeMap(data []byte, v reflect.Value) error {
-	iter := newReader(data)
+	iter, err := newReader(data)
+	if err != nil {
+		return err
+	}
 
 	for iter.Next() {
 		typ, name, element := iter.Peek()
@@ -241,7 +247,10 @@ func decodeMap(data []byte, v reflect.Value) error {
 }
 
 func decodeSlice(data []byte, v *[]any) error {
-	iter := newReader(data)
+	iter, err := newReader(data)
+	if err != nil {
+		return err
+	}
 
 	for iter.Next() {
 		typ, _, element := iter.Peek()
@@ -331,10 +340,13 @@ type reader struct {
 	err     error  // err during reading.
 }
 
-func newReader(b []byte) reader {
+func newReader(b []byte) (reader, error) {
+	if len(b) < 5 {
+		return reader{}, errors.New("not enough data")
+	}
 	return reader{
 		data: b[4 : len(b)-1], // TODO(cristaloleg): this can easily panic.
-	}
+	}, nil
 }
 
 func (r *reader) Err() error {
@@ -377,9 +389,16 @@ func (r *reader) Next() bool {
 		if len(rest) < elen {
 			return r.setErr(errors.New("corrupt BSON reading string"))
 		}
-		element, rest = rest[4:elen], rest[elen+4:]
+		element = rest[4 : 4+elen]
+		if len(rest) < 4+elen {
+			return r.setErr(errors.New("corrupt BSON reading string"))
+		}
+		rest = rest[4+elen:]
 
 	case TypeDocument, TypeArray:
+		if len(rest) < 5 {
+			return r.setErr(errors.New("corrupt BSON reading string len"))
+		}
 		elen, _ := readInt32(rest)
 		if len(rest) < elen {
 			return r.setErr(fmt.Errorf("corrupt document: want %x bytes, have %x", elen, len(rest)))
@@ -407,21 +426,22 @@ func (r *reader) Next() bool {
 	case TypeNull:
 		element, rest = rest[:0], rest[0:]
 
-	case TypeRegex:
-		if len(rest) < 2 {
-			return r.setErr(errors.New("corrupt BSON reading regex"))
-		}
-		i := bytes.IndexByte(rest, 0)
-		if i < 0 {
-			return r.setErr(errors.New("corrupt BSON regex 1"))
-		}
-		i++
-		j := bytes.IndexByte(rest[i+1:], 0)
-		if j < 0 {
-			return r.setErr(errors.New("corrupt BSON regex 2"))
-		}
-		j++
-		element, rest = rest[:i+j+1], rest[i+j+1:]
+	// TODO(cristaloleg): fuzzer fails on 2nd IndexByte.
+	// case TypeRegex:
+	// 	if len(rest) < 2 {
+	// 		return r.setErr(errors.New("corrupt BSON reading regex"))
+	// 	}
+	// 	i := bytes.IndexByte(rest, 0)
+	// 	if i < 0 {
+	// 		return r.setErr(errors.New("corrupt BSON regex 1"))
+	// 	}
+	// 	i++
+	// 	j := bytes.IndexByte(rest[i+1:], 0)
+	// 	if j < 0 {
+	// 		return r.setErr(errors.New("corrupt BSON regex 2"))
+	// 	}
+	// 	j++
+	// 	element, rest = rest[:i+j+1], rest[i+j+1:]
 
 	case TypeInt32:
 		if len(rest) < 4 {
@@ -473,4 +493,9 @@ func readCstring(buf []byte) ([]byte, []byte, error) {
 	return buf[:i], buf[i:], nil
 }
 
-func trimlast(s []byte) string { return string(s[:len(s)-1]) }
+func trimlast(s []byte) string {
+	if len(s) == 0 {
+		return ""
+	}
+	return string(s[:len(s)-1])
+}
