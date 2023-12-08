@@ -69,25 +69,75 @@ func decodeStruct(data []byte, v reflect.Value) error {
 			v.SetFloat(math.Float64frombits(val))
 
 		case TypeString:
+			v.SetString(trimlast(element))
+
 		case TypeDocument:
+			m := make(map[string]any)
+			vv := reflect.ValueOf(m)
+			if err := decodeMap(element, vv); err != nil {
+				return err
+			}
+			v.Set(vv)
+
 		case TypeArray:
-		case TypeBinary:
-		case TypeUndefined:
+			s := make([]any, 0)
+			if err := decodeSlice(element, &s); err != nil {
+				return err
+			}
+			vv := reflect.ValueOf(s)
+			v.Set(vv)
+
 		case TypeObjectID:
+			var oid ObjectID
+			copy(oid[:], element)
+			v.Set(reflect.ValueOf(oid))
+
 		case TypeBool:
-		case TypeDateTime:
-		case TypeNull:
-		case TypeRegex:
-		case TypeDBPointer:
-		case TypeCodeWithScope:
-		case TypeSymbol:
-		case TypeJavaScriptScope:
+			v.SetBool(element[0] == 1)
+
 		case TypeInt32:
+			element := int64(element[0]) |
+				int64(element[1])<<8 |
+				int64(element[2])<<16 |
+				int64(element[3])<<24
+			v.SetInt(element)
+
 		case TypeTimestamp:
+			ts := Timestamp(element[0]) |
+				Timestamp(element[1])<<8 |
+				Timestamp(element[2])<<16 |
+				Timestamp(element[3])<<24 |
+				Timestamp(element[4])<<32 |
+				Timestamp(element[5])<<40 |
+				Timestamp(element[6])<<48 |
+				Timestamp(element[7])<<56
+			v.Set(reflect.ValueOf(ts))
+
 		case TypeInt64:
-		case TypeDecimal:
-		case TypeMinKey:
-		case TypeMaxKey:
+			element := int64(element[0]) |
+				int64(element[1])<<8 |
+				int64(element[2])<<16 |
+				int64(element[3])<<24 |
+				int64(element[4])<<32 |
+				int64(element[5])<<40 | int64(element[6])<<48 | int64(element[7])<<56
+			v.SetInt(element)
+
+		case TypeBinary,
+			TypeUndefined,
+			TypeDateTime,
+			TypeNull,
+			TypeRegex,
+			TypeDBPointer,
+			TypeCodeWithScope,
+			TypeSymbol,
+			TypeJavaScriptScope,
+			TypeDecimal,
+			TypeMinKey,
+			TypeMaxKey:
+			return fmt.Errorf("unsupported type %x", typ)
+		default:
+			return fmt.Errorf("unknown element type %x", typ)
+
 		}
 	}
 	return iter.Err()
@@ -114,25 +164,77 @@ func decodeMap(data []byte, v reflect.Value) error {
 			v.SetMapIndex(key, reflect.ValueOf(math.Float64frombits(val)))
 
 		case TypeString:
+			vv := reflect.ValueOf(trimlast(element))
+			v.SetMapIndex(key, vv)
+
 		case TypeDocument:
+			m := make(map[string]any)
+			vv := reflect.ValueOf(m)
+			if err := decodeMap(element, vv); err != nil {
+				return err
+			}
+			v.SetMapIndex(key, vv)
+
 		case TypeArray:
-		case TypeBinary:
-		case TypeUndefined:
+			s := make([]any, 0)
+			if err := decodeSlice(element, &s); err != nil {
+				return err
+			}
+			vv := reflect.ValueOf(s)
+			v.SetMapIndex(key, vv)
+
 		case TypeObjectID:
+			var oid ObjectID
+			copy(oid[:], element)
+			v.SetMapIndex(key, reflect.ValueOf(oid))
+
 		case TypeBool:
-		case TypeDateTime:
-		case TypeNull:
-		case TypeRegex:
-		case TypeDBPointer:
-		case TypeCodeWithScope:
-		case TypeSymbol:
-		case TypeJavaScriptScope:
+			v.SetMapIndex(key, reflect.ValueOf(element[0] == 1))
+
 		case TypeInt32:
+			element := int32(element[0]) |
+				int32(element[1])<<8 |
+				int32(element[2])<<16 |
+				int32(element[3])<<24
+			v.SetMapIndex(key, reflect.ValueOf(element))
+
 		case TypeTimestamp:
+			ts := Timestamp(element[0]) |
+				Timestamp(element[1])<<8 |
+				Timestamp(element[2])<<16 |
+				Timestamp(element[3])<<24 |
+				Timestamp(element[4])<<32 |
+				Timestamp(element[5])<<40 |
+				Timestamp(element[6])<<48 |
+				Timestamp(element[7])<<56
+			v.SetMapIndex(key, reflect.ValueOf(ts))
+
 		case TypeInt64:
-		case TypeDecimal:
-		case TypeMinKey:
-		case TypeMaxKey:
+			element := int64(element[0]) |
+				int64(element[1])<<8 |
+				int64(element[2])<<16 |
+				int64(element[3])<<24 |
+				int64(element[4])<<32 |
+				int64(element[5])<<40 |
+				int64(element[6])<<48 |
+				int64(element[7])<<56
+			v.SetMapIndex(key, reflect.ValueOf(element))
+
+		case TypeBinary,
+			TypeUndefined,
+			TypeDateTime,
+			TypeRegex,
+			TypeDBPointer,
+			TypeCodeWithScope,
+			TypeSymbol,
+			TypeJavaScriptScope,
+			TypeDecimal,
+			TypeMinKey,
+			TypeMaxKey:
+			return fmt.Errorf("unsupported type %x", typ)
+
+		default:
+			return fmt.Errorf("unknown element type %x", typ)
 		}
 	}
 	return iter.Err()
@@ -157,25 +259,66 @@ func decodeSlice(data []byte, v *[]any) error {
 			*v = append(*v, bits)
 
 		case TypeString:
+			*v = append(*v, trimlast(element))
+
 		case TypeDocument:
+			m := make(map[string]any)
+			vv := reflect.ValueOf(m)
+			if err := decodeMap(element, vv); err != nil {
+				return err
+			}
+			*v = append(*v, m)
+
 		case TypeArray:
-		case TypeBinary:
-		case TypeUndefined:
+			s := make([]any, 0)
+			if err := decodeSlice(element, &s); err != nil {
+				return err
+			}
+			*v = append(*v, s)
+
 		case TypeObjectID:
+			var oid ObjectID
+			copy(oid[:], element)
+			*v = append(*v, oid)
+
 		case TypeBool:
-		case TypeDateTime:
+			b := element[0] == 1
+			*v = append(*v, b)
+
+		// case TypeDateTime:
+		// 	dt := Datetime(element[0]) | Datetime(element[1])<<8 | Datetime(element[2])<<16 | Datetime(element[3])<<24 | Datetime(element[4])<<32 | Datetime(element[5])<<40 | Datetime(element[6])<<48 | Datetime(element[7])<<56
+		// 	*v = append(*v, dt)
+
 		case TypeNull:
-		case TypeRegex:
-		case TypeDBPointer:
-		case TypeCodeWithScope:
-		case TypeSymbol:
-		case TypeJavaScriptScope:
+			*v = append(*v, nil)
+
 		case TypeInt32:
+			element := int32(element[0]) | int32(element[1])<<8 | int32(element[2])<<16 | int32(element[3])<<24
+			*v = append(*v, element)
+
 		case TypeTimestamp:
+			ts := Timestamp(element[0]) | Timestamp(element[1])<<8 | Timestamp(element[2])<<16 | Timestamp(element[3])<<24 | Timestamp(element[4])<<32 | Timestamp(element[5])<<40 | Timestamp(element[6])<<48 | Timestamp(element[7])<<56
+			*v = append(*v, ts)
+
 		case TypeInt64:
-		case TypeDecimal:
-		case TypeMinKey:
-		case TypeMaxKey:
+			element := int64(element[0]) | int64(element[1])<<8 | int64(element[2])<<16 | int64(element[3])<<24 | int64(element[4])<<32 | int64(element[5])<<40 | int64(element[6])<<48 | int64(element[7])<<56
+			*v = append(*v, element)
+
+		case TypeBinary,
+			TypeUndefined,
+			TypeDateTime,
+			TypeRegex,
+			TypeDBPointer,
+			TypeCodeWithScope,
+			TypeSymbol,
+			TypeJavaScriptScope,
+			TypeDecimal,
+			TypeMinKey,
+			TypeMaxKey:
+			return fmt.Errorf("unsupported type %x", typ)
+
+		default:
+			return fmt.Errorf("unknown element type %x", typ)
 		}
 	}
 	return iter.Err()
@@ -226,26 +369,66 @@ func (r *reader) Next() bool {
 		}
 		element, rest = rest[:8], rest[8:]
 
-	case TypeString:
-	case TypeDocument:
-	case TypeArray:
-	case TypeBinary:
-	case TypeUndefined:
+	case TypeDocument, TypeArray:
+		elen, _ := readInt32(rest)
+		if len(rest) < elen {
+			r.err = fmt.Errorf("corrupt document: want %x bytes, have %x", elen, len(rest))
+			return false
+		}
+		element, rest = rest[:elen], rest[elen:]
+
 	case TypeObjectID:
+		if len(rest) < 12 {
+			return r.setErr(errors.New("corrupt BSON reading object id"))
+		}
+		element, rest = rest[:12], rest[12:]
+
 	case TypeBool:
+		if len(rest) < 1 {
+			return r.setErr(errors.New("corrupt BSON reading boolean"))
+		}
+		element, rest = rest[:1], rest[1:]
+
 	case TypeDateTime:
+		if len(rest) < 8 {
+			return r.setErr(errors.New("corrupt BSON reading utc datetime"))
+		}
+		element, rest = rest[:8], rest[8:]
+
 	case TypeNull:
+		element, rest = rest[:0], rest[0:]
+
 	case TypeRegex:
-	case TypeDBPointer:
-	case TypeCodeWithScope:
-	case TypeSymbol:
-	case TypeJavaScriptScope:
+		if len(rest) < 2 {
+			return r.setErr(errors.New("corrupt BSON reading regex"))
+		}
+		i := bytes.IndexByte(rest, 0)
+		if i < 0 {
+			return r.setErr(errors.New("corrupt BSON regex 1"))
+		}
+		i++
+		j := bytes.IndexByte(rest[i+1:], 0)
+		if j < 0 {
+			return r.setErr(errors.New("corrupt BSON regex 2"))
+		}
+		j++
+		element, rest = rest[:i+j+1], rest[i+j+1:]
+
 	case TypeInt32:
+		if len(rest) < 4 {
+			return r.setErr(errors.New("corrupt BSON reading int32"))
+		}
+		element, rest = rest[:4], rest[4:]
+
 	case TypeTimestamp:
+		fallthrough
+
 	case TypeInt64:
-	case TypeDecimal:
-	case TypeMinKey:
-	case TypeMaxKey:
+		if len(rest) < 8 {
+			return r.setErr(errors.New("corrupt BSON reading int64"))
+		}
+		element, rest = rest[:8], rest[8:]
+
 	default:
 		return r.setErr(fmt.Errorf("unknown element type %x", typ))
 	}
@@ -261,6 +444,8 @@ func (r *reader) setErr(err error) bool {
 	return false
 }
 
+// readInt32 the 4 bytes in little endian and return tail.
+// Panics if less than 4 bytes is passed.
 func readInt32(buf []byte) (int, []byte) {
 	v := int(buf[0]) |
 		int(buf[1])<<8 |
@@ -269,6 +454,7 @@ func readInt32(buf []byte) (int, []byte) {
 	return v, buf[4:]
 }
 
+// readCstring returns CString including \0.
 func readCstring(buf []byte) ([]byte, []byte, error) {
 	i := bytes.IndexByte(buf, 0)
 	if i == -1 {
