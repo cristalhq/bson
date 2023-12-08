@@ -1,9 +1,87 @@
+// Package bson implements encoding and decoding of BSON as defined by https://bsonspec.org/spec.html
+// and https://www.mongodb.com/docs/manual/reference/bson-types/.
+//
+// # Types
+//
+// The following BSON types are supported:
+//
+//	BSON                Go
+//
+//	Double              float64
+//	String              string
+//	Object              *bson.Object
+//	Array               *bson.Array
+//	Binary data         bson.Binary
+//	ObjectId            bson.ObjectID
+//	Boolean             bool
+//	Date                time.Time
+//	Null                bson.NullType
+//	Regular Expression  bson.Regex
+//	32-bit integer      int32
+//	Timestamp           bson.Timestamp
+//	64-bit integer      int64
+//
+// Composite types (Object and Array) are passed by pointers. Scalar types are passed by values.
 package bson
 
 import (
 	"bytes"
+	"fmt"
 	"sort"
 )
+
+type rawObject []byte
+
+type rawArray []byte
+
+type field struct {
+	name  string
+	value any // BSON type, rawObject, or rawArray
+}
+
+type Object struct {
+	fields []field
+}
+
+type Array struct {
+	elements []any // BSON type, rawObject, or rawArray
+}
+
+func (o *Object) MarshalBinary() ([]byte, error) {
+	res := make([]byte, 0, 5)
+
+	for _, f := range o.fields {
+		var t byte
+		var b []byte
+		var err error
+
+		switch value := f.value.(type) {
+		case rawObject:
+			t = 0x03
+			b = value
+		case rawArray:
+			t = 0x04
+			b = value
+		case float64:
+			t = 0x01
+			b, err = marshalDouble(value)
+			if err != nil {
+				return nil, fmt.Errorf("marshal double: %w", err)
+			}
+
+			// ...
+		}
+
+		res = append(res, t)
+		res = append(res, f.name...)
+		res = append(res, 0x00)
+		res = append(res, b...)
+	}
+
+	res = append(res, 0x00)
+
+	return res, nil
+}
 
 // Marshaler is the interface implemented by types that
 // can marshal themselves into valid BSON.
