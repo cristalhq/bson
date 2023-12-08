@@ -5,6 +5,34 @@ import (
 	"testing"
 )
 
+func TestEncode(t *testing.T) {
+	var buf bytes.Buffer
+	enc := NewEncoder(&buf)
+
+	var err error
+	var arr A
+
+	arr = A{
+		bool(true),
+		int(123),
+		int8(123),
+		int16(123),
+		int32(123),
+		int64(123),
+		uint(123),
+		uint8(123),
+		uint16(123),
+		uint32(123),
+		uint64(123),
+		float32(123),
+		float64(123),
+	}
+	err = enc.Encode(arr)
+	mustOk(t, err)
+	wantBytes(t, buf.Bytes(), "70000000083000011031007b0000001032007b0000001033007b0000001034007b0000001235007b000000000000001036007b0000001037007b0000001038007b0000001039007b000000123130007b00000000000000013131000000000000c05e40013132000000000000c05e4000")
+	buf.Reset()
+}
+
 func TestEncodeA(t *testing.T) {
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
