@@ -90,3 +90,9 @@ func (m M) AsD() D {
 	sort.Sort(d)
 	return d
 }
+
+// RawArray represents a raw array which will be encoded or decoded as is.
+type RawArray []byte
+
+// RawObject represents a raw object which will be encoded or decoded as is.
+type RawObject []byte
