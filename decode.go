@@ -369,11 +369,20 @@ func (r *reader) Next() bool {
 		}
 		element, rest = rest[:8], rest[8:]
 
+	case TypeString:
+		if len(rest) < 5 {
+			return r.setErr(errors.New("corrupt BSON reading string len"))
+		}
+		elen, _ := readInt32(rest)
+		if len(rest) < elen {
+			return r.setErr(errors.New("corrupt BSON reading string"))
+		}
+		element, rest = rest[4:elen], rest[elen+4:]
+
 	case TypeDocument, TypeArray:
 		elen, _ := readInt32(rest)
 		if len(rest) < elen {
-			r.err = fmt.Errorf("corrupt document: want %x bytes, have %x", elen, len(rest))
-			return false
+			return r.setErr(fmt.Errorf("corrupt document: want %x bytes, have %x", elen, len(rest)))
 		}
 		element, rest = rest[:elen], rest[elen:]
 
