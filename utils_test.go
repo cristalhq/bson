@@ -2,9 +2,16 @@ package bson
 
 import (
 	"encoding/hex"
+	"math/rand"
 	"reflect"
 	"testing"
 )
+
+func sink[T any](tb testing.TB, v T) {
+	if rand.Float32() > 2 {
+		tb.Fatal(v)
+	}
+}
 
 func mustOk(tb testing.TB, err error) {
 	tb.Helper()
