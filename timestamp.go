@@ -1,15 +1,12 @@
 package bson
 
 import (
-	"encoding/binary"
+	"encoding"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"sync/atomic"
 	"time"
-)
-
-var (
-	_ Marshaler   = Timestamp(0)
-	_ Unmarshaler = new(Timestamp)
 )
 
 // Timestamp represents BSON type Timestamp.
@@ -33,7 +30,7 @@ func NewTimestampWithCounter(t time.Time, c uint32) Timestamp {
 }
 
 // String returns a hex string representation of the id.
-// Example: Timestamp('64d526fa37931c1e97eea90f').
+// Example: Timestamp('4398046513152, 1024').
 func (ts Timestamp) String() string {
 	return fmt.Sprintf(`Timestamp(%d, %d)`, ts, ts>>32)
 }
@@ -48,6 +45,7 @@ func (ts Timestamp) Counter() uint32 {
 	return uint32(ts)
 }
 
+// MarshalBSON implements [Marshaler].
 func (ts Timestamp) MarshalBSON() ([]byte, error) {
 	var b [8]byte
 	b[0] = byte(ts)
@@ -61,10 +59,62 @@ func (ts Timestamp) MarshalBSON() ([]byte, error) {
 	return b[:], nil
 }
 
+// UnmarshalBSON implements [Unmarshaler].
 func (ts *Timestamp) UnmarshalBSON(b []byte) error {
-	v := binary.LittleEndian.Uint64(b)
+	if len(b) < 8 {
+		return errors.New("not enough bytes for timestamp")
+	}
+	v := uint64(b[0]) |
+		uint64(b[1])<<8 |
+		uint64(b[2])<<16 |
+		uint64(b[3])<<24 |
+		uint64(b[4])<<32 |
+		uint64(b[5])<<40 |
+		uint64(b[6])<<48 |
+		uint64(b[7])<<56
 	*ts = Timestamp(v)
 	return nil
 }
 
+// MarshalText implements [encoding.TextMarshaler].
+func (ts Timestamp) MarshalText() ([]byte, error) {
+	return ts.MarshalBSON()
+}
+
+// UnmarshalText implements [encoding.TextUnmarshaler].
+func (ts *Timestamp) UnmarshalText(b []byte) error {
+	return ts.UnmarshalBSON(b)
+}
+
+// MarshalBinary implements [encoding.BinaryMarshaler].
+func (ts Timestamp) MarshalBinary() ([]byte, error) {
+	return ts.MarshalBSON()
+}
+
+// UnmarshalBinary implements [encoding.BinaryUnmarshaler].
+func (ts *Timestamp) UnmarshalBinary(b []byte) error {
+	return ts.UnmarshalBSON(b)
+}
+
+// MarshalJSON implements [json.Marshaler].
+func (ts Timestamp) MarshalJSON() ([]byte, error) {
+	return ts.MarshalBSON()
+}
+
+// UnmarshalJSON implements [json.Unmarshaler].
+func (ts *Timestamp) UnmarshalJSON(b []byte) error {
+	return ts.UnmarshalBSON(b)
+}
+
 var timestampCounter atomic.Uint32
+
+var (
+	_ Marshaler                  = Timestamp(0)
+	_ Unmarshaler                = new(Timestamp)
+	_ encoding.TextMarshaler     = Timestamp(0)
+	_ encoding.TextUnmarshaler   = new(Timestamp)
+	_ encoding.BinaryMarshaler   = Timestamp(0)
+	_ encoding.BinaryUnmarshaler = new(Timestamp)
+	_ json.Marshaler             = Timestamp(0)
+	_ json.Unmarshaler           = new(Timestamp)
+)
