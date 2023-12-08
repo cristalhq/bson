@@ -38,6 +38,16 @@ type Unmarshaler interface {
 	UnmarshalBSON([]byte) error
 }
 
+// Unmarshal parses the BSON data and stores the result
+// in the value pointed to by v.
+func Unmarshal(data []byte, v any) error {
+	d := NewDecodeBytes(data)
+	if err := d.Decode(v); err != nil {
+		return err
+	}
+	return nil
+}
+
 // A is a BSON array.
 //
 // Example:
