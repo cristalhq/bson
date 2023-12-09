@@ -34,32 +34,96 @@ func (enc *Encoder) Encode(v any) error {
 }
 
 func (enc *Encoder) marshal(v any) error {
-	if doc, ok := v.(D); ok {
-		_, err := enc.writeDoc(doc)
-		return err
-	}
-
 	var err error
-	switch rv := reflect.ValueOf(v); rv.Kind() {
-	case reflect.Map:
-		_, err = enc.writeMap(rv)
-	case reflect.Struct:
-		_, err = enc.writeStruct(rv)
-	case reflect.Array, reflect.Slice:
-		_, err = enc.writeSlice(rv)
+	switch v := v.(type) {
+	case D:
+		_, err = enc.writeD(v)
+	case M:
+		_, err = enc.writeM(v)
+	case map[string]any:
+		_, err = enc.writeM(v)
+	case A:
+		_, err = enc.writeA(v)
+	case []any:
+		_, err = enc.writeA(v)
+
 	default:
-		return fmt.Errorf("type %T is not supported yet", v)
+		switch rv := reflect.ValueOf(v); rv.Kind() {
+		case reflect.Struct:
+			_, err = enc.writeStruct(rv)
+		case reflect.Map:
+			_, err = enc.writeMap(rv)
+		case reflect.Array, reflect.Slice:
+			_, err = enc.writeSlice(rv)
+		default:
+			return fmt.Errorf("type %T is not supported yet", v)
+		}
 	}
 	return err
 }
 
-func (enc *Encoder) writeDoc(doc D) (int, error) {
+func (enc *Encoder) writeD(d D) (int, error) {
 	start := len(enc.buf)
 	enc.buf = append(enc.buf, 0, 0, 0, 0)
 	count := 4 + 1 // sizeof(int) + sizeof(\0)
 
+	for i := 0; i < len(d); i++ {
+		n, err := enc.writeValue(d[i].K, reflect.ValueOf(d[i].V))
+		if err != nil {
+			return 0, err
+		}
+		count += n
+	}
+
+	enc.buf = append(enc.buf, 0)
+	enc.buf[start] = byte(count)
+	enc.buf[start+1] = byte(count >> 8)
+	enc.buf[start+2] = byte(count >> 16)
+	enc.buf[start+3] = byte(count >> 24)
+	return count, nil
+}
+
+func (enc *Encoder) writeM(m M) (int, error) {
+	start := len(enc.buf)
+	enc.buf = append(enc.buf, 0, 0, 0, 0)
+	count := 4 + 1 // sizeof(int) + sizeof(\0)
+
+	doc := make(docRefl, len(m))
+
+	i := 0
+	for k, v := range m {
+		doc[i] = pairRefl{
+			Key: k,
+			Val: reflect.ValueOf(v),
+		}
+		i++
+	}
+
+	sortPairRefl(doc)
+
 	for i := 0; i < len(doc); i++ {
-		n, err := enc.writeValue(doc[i].K, reflect.ValueOf(doc[i].V))
+		n, err := enc.writeValue(doc[i].Key, doc[i].Val)
+		if err != nil {
+			return 0, err
+		}
+		count += n
+	}
+
+	enc.buf = append(enc.buf, 0)
+	enc.buf[start] = byte(count)
+	enc.buf[start+1] = byte(count >> 8)
+	enc.buf[start+2] = byte(count >> 16)
+	enc.buf[start+3] = byte(count >> 24)
+	return count, nil
+}
+
+func (enc *Encoder) writeA(a A) (int, error) {
+	start := len(enc.buf)
+	enc.buf = append(enc.buf, 0, 0, 0, 0)
+	count := 4 + 1 // sizeof(int) + sizeof(\0)
+
+	for i := range a {
+		n, err := enc.writeValue(strconv.Itoa(i), reflect.ValueOf(a[i]))
 		if err != nil {
 			return 0, err
 		}
