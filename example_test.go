@@ -12,9 +12,28 @@ func Example_types() {
 	doc := bson.D{{"hello", "world"}, {"answer", 42}}
 	doo := bson.M{"hello": "world", "pi": 3.14159}
 
+	fmt.Println(arr)
+	fmt.Println(arr.AsD())
+	fmt.Println()
+
+	fmt.Println(doc)
+	fmt.Println(doc.AsM())
+	fmt.Println()
+
+	fmt.Println(doo)
+	fmt.Println(doo.AsD())
+
 	_, _, _ = arr, doc, doo
 
 	// Output:
+	// [a b c 12345]
+	// [{1 a} {2 b} {3 c} {4 12345}]
+	//
+	// [{hello world} {answer 42}]
+	// map[answer:42 hello:world]
+	//
+	// map[hello:world pi:3.14159]
+	// [{hello world} {pi 3.14159}]
 }
 
 func ExampleMarshal() {
