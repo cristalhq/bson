@@ -22,27 +22,43 @@ func NewDecodeBytes(buf []byte) *Decoder {
 	return d
 }
 
-func (d *Decoder) Decode(v any) error {
-	if len(d.data) < 4 {
+func (dec *Decoder) Decode(v any) error {
+	if len(dec.data) < 4 {
 		return errors.New("not enough data") // TODO(cristaloleg): static error?
 	}
 
-	rv := reflect.ValueOf(v)
-	switch {
-	case rv.Kind() != reflect.Ptr:
-		return errors.New("unmarshal non-pointer: " + rv.Type().String())
-	case rv.IsNil():
-		return errors.New("unmarshal nil: " + rv.Type().String())
-	}
+	var err error
+	switch v := v.(type) {
+	case *D:
+		// _, err = dec.writeD(v)
+	case *M:
+		// _, err = dec.writeM(v)
+	case *map[string]any:
+		// _, err = dec.writeM(v)
+	case *A:
+		// _, err = dec.writeA(v)
+	case *[]any:
+		// _, err = dec.writeA(v)
 
-	switch rv := rv.Elem(); rv.Kind() {
-	case reflect.Struct:
-		return decodeStruct(d.data, rv)
-	case reflect.Map:
-		return decodeMap(d.data, rv)
 	default:
-		return errors.New("unmarshal unsupported: " + rv.Type().String())
+		rv := reflect.ValueOf(v)
+		switch {
+		case rv.Kind() != reflect.Ptr:
+			return errors.New("unmarshal non-pointer: " + rv.Type().String())
+		case rv.IsNil():
+			return errors.New("unmarshal nil: " + rv.Type().String())
+		}
+
+		switch rv := rv.Elem(); rv.Kind() {
+		case reflect.Struct:
+			return decodeStruct(dec.data, rv)
+		case reflect.Map:
+			return decodeMap(dec.data, rv)
+		default:
+			return errors.New("unmarshal unsupported: " + rv.Type().String())
+		}
 	}
+	return err
 }
 
 func decodeStruct(data []byte, v reflect.Value) error {
