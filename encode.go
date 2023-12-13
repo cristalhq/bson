@@ -190,16 +190,22 @@ func (enc *Encoder) writeValue(ename string, v reflect.Value) (int, error) {
 	case reflect.String:
 		count += enc.writeElem(TypeString, ename)
 		count += enc.writeString(v.String())
-	case reflect.Int32:
+	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32:
 		count += enc.writeElem(TypeInt32, ename)
 		count += enc.writeInt32(int32(v.Int()))
+	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32:
+		count += enc.writeElem(TypeInt32, ename)
+		count += enc.writeInt32(int32(v.Uint()))
+	case reflect.Uint64:
+		count += enc.writeElem(TypeInt64, ename)
+		count += enc.writeInt64(int64(v.Uint()))
 	case reflect.Int64:
 		count += enc.writeElem(TypeInt64, ename)
 		count += enc.writeInt64(int64(v.Int()))
 	case reflect.Bool:
 		count += enc.writeElem(TypeBool, ename)
 		count += enc.writeBool(v.Bool())
-	case reflect.Float64:
+	case reflect.Float32, reflect.Float64:
 		count += enc.writeElem(TypeDouble, ename)
 		count += enc.writeInt64(int64(math.Float64bits(v.Float())))
 
