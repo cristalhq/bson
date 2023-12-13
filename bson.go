@@ -59,10 +59,8 @@ type A []any
 func (a A) AsD() D {
 	d := make(D, len(a))
 	for i, v := range a {
-		d[i] = e{K: strconv.Itoa(i + 1), V: v}
+		d[i] = e{K: strconv.Itoa(i), V: v}
 	}
-
-	sort.Sort(d)
 	return d
 }
 
