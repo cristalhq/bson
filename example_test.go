@@ -27,7 +27,7 @@ func Example_types() {
 
 	// Output:
 	// [a b c 12345]
-	// [{1 a} {2 b} {3 c} {4 12345}]
+	// [{0 a} {1 b} {2 c} {3 12345}]
 	//
 	// [{hello world} {answer 42}]
 	// map[answer:42 hello:world]
