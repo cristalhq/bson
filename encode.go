@@ -46,6 +46,10 @@ func (enc *Encoder) marshal(v any) error {
 		_, err = enc.writeA(v)
 	case []any:
 		_, err = enc.writeA(v)
+	case RawObject:
+		enc.buf = append(enc.buf, v...)
+	case RawArray:
+		enc.buf = append(enc.buf, v...)
 
 	default:
 		switch rv := reflect.ValueOf(v); rv.Kind() {
