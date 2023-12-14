@@ -16,7 +16,7 @@ func must[T any](v T, err error) T {
 
 type pairRefl struct {
 	Key string
-	Val reflect.Value
+	Val any
 }
 
 type docRefl []pairRefl
