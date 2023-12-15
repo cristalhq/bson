@@ -2,20 +2,16 @@ package bson
 
 import (
 	"crypto/rand"
+	"encoding"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
-	"fmt"
 	mathrand "math/rand"
 	"sync/atomic"
 	"time"
 )
 
-var (
-	_ Marshaler   = &ObjectID{}
-	_ Unmarshaler = &ObjectID{}
-)
-
-var ErrBadObjectID = errors.New("provided input is not a valid ObjectID")
+var ErrBadObjectID = errors.New("not a valid ObjectID")
 
 // ObjectID represents BSON object ID.
 type ObjectID [12]byte
@@ -49,17 +45,19 @@ func NewObjectIDWithTime(t time.Time) ObjectID {
 }
 
 // String returns a hex string representation of the id.
-// Example: ObjectIdHex('64d526fa37931c1e97eea90f').
+// Example: ObjectID('64d526fa37931c1e97eea90f').
 func (oid ObjectID) String() string {
-	return fmt.Sprintf(`ObjectIdHex('%x')`, string(oid[:]))
+	return "ObjectID('" + hex.EncodeToString(oid[:]) + "')"
 }
 
+// MarshalBSON implements [bson.Marshaler].
 func (oid *ObjectID) MarshalBSON() ([]byte, error) {
 	b := make([]byte, len(oid))
 	copy(b, oid[:])
 	return b, nil
 }
 
+// UnmarshalBSON implements [bson.Unmarshaler].
 func (oid *ObjectID) UnmarshalBSON(b []byte) error {
 	switch len(b) {
 	case 12:
@@ -67,13 +65,43 @@ func (oid *ObjectID) UnmarshalBSON(b []byte) error {
 		return nil
 	case 24:
 		n, err := hex.Decode(oid[:], b)
-		if n != 24 {
+		if n != 12 {
 			panic("unreachable")
 		}
 		return err
 	default:
 		return ErrBadObjectID
 	}
+}
+
+// MarshalText implements [encoding.TextMarshaler].
+func (oid ObjectID) MarshalText() ([]byte, error) {
+	return oid.MarshalBSON()
+}
+
+// UnmarshalText implements [encoding.TextUnmarshaler].
+func (oid *ObjectID) UnmarshalText(b []byte) error {
+	return oid.UnmarshalBSON(b)
+}
+
+// MarshalBinary implements [encoding.BinaryMarshaler].
+func (oid ObjectID) MarshalBinary() ([]byte, error) {
+	return oid.MarshalBSON()
+}
+
+// UnmarshalBinary implements [encoding.BinaryUnmarshaler].
+func (oid *ObjectID) UnmarshalBinary(b []byte) error {
+	return oid.UnmarshalBSON(b)
+}
+
+// MarshalJSON implements [json.Marshaler].
+func (oid ObjectID) MarshalJSON() ([]byte, error) {
+	return oid.MarshalText()
+}
+
+// UnmarshalJSON implements [json.Unmarshaler].
+func (oid *ObjectID) UnmarshalJSON(b []byte) error {
+	return oid.UnmarshalBSON(b)
 }
 
 var (
@@ -85,3 +113,14 @@ func init() {
 	must(rand.Read(procUniqueID[:]))
 	objectIDCounter.Store(mathrand.Uint32())
 }
+
+var (
+	_ Marshaler                  = &ObjectID{}
+	_ Unmarshaler                = &ObjectID{}
+	_ encoding.TextMarshaler     = &ObjectID{}
+	_ encoding.TextUnmarshaler   = &ObjectID{}
+	_ encoding.BinaryMarshaler   = &ObjectID{}
+	_ encoding.BinaryUnmarshaler = &ObjectID{}
+	_ json.Marshaler             = &ObjectID{}
+	_ json.Unmarshaler           = &ObjectID{}
+)
