@@ -21,6 +21,14 @@ func mustOk(tb testing.TB, err error) {
 	}
 }
 
+func mustFail(tb testing.TB, err error) {
+	tb.Helper()
+
+	if err == nil {
+		tb.Fail()
+	}
+}
+
 func wantBytes(tb testing.TB, have []byte, want string) {
 	tb.Helper()
 
