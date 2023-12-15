@@ -39,9 +39,9 @@ func (enc *Encoder) marshal(v any) error {
 	case D:
 		_, err = enc.writeD(v)
 	case M:
-		_, err = enc.writeM(v)
+		_, err = enc.writeD(v.AsD())
 	case map[string]any:
-		_, err = enc.writeM(v)
+		_, err = enc.writeD(M(v).AsD())
 	case A:
 		_, err = enc.writeA(v)
 	case []any:
@@ -72,41 +72,7 @@ func (enc *Encoder) writeD(d D) (int, error) {
 	count := 4 + 1 // sizeof(int) + sizeof(\0)
 
 	for i := 0; i < len(d); i++ {
-		n, err := enc.writeValue(d[i].K, reflect.ValueOf(d[i].V))
-		if err != nil {
-			return 0, err
-		}
-		count += n
-	}
-
-	enc.buf = append(enc.buf, 0)
-	enc.buf[start] = byte(count)
-	enc.buf[start+1] = byte(count >> 8)
-	enc.buf[start+2] = byte(count >> 16)
-	enc.buf[start+3] = byte(count >> 24)
-	return count, nil
-}
-
-func (enc *Encoder) writeM(m M) (int, error) {
-	start := len(enc.buf)
-	enc.buf = append(enc.buf, 0, 0, 0, 0)
-	count := 4 + 1 // sizeof(int) + sizeof(\0)
-
-	doc := make(docRefl, len(m))
-
-	i := 0
-	for k, v := range m {
-		doc[i] = pairRefl{
-			Key: k,
-			Val: reflect.ValueOf(v),
-		}
-		i++
-	}
-
-	sortPairRefl(doc)
-
-	for i := 0; i < len(doc); i++ {
-		n, err := enc.writeValue(doc[i].Key, doc[i].Val)
+		n, err := enc.writeAny(d[i].K, d[i].V)
 		if err != nil {
 			return 0, err
 		}
@@ -127,7 +93,7 @@ func (enc *Encoder) writeA(a A) (int, error) {
 	count := 4 + 1 // sizeof(int) + sizeof(\0)
 
 	for i := range a {
-		n, err := enc.writeValue(strconv.Itoa(i), reflect.ValueOf(a[i]))
+		n, err := enc.writeAny(strconv.Itoa(i), a[i])
 		if err != nil {
 			return 0, err
 		}
@@ -142,49 +108,21 @@ func (enc *Encoder) writeA(a A) (int, error) {
 	return count, nil
 }
 
-// TODO(cristaloleg): doc[i] value box-unbox can be omitted.
 func (enc *Encoder) writeMap(v reflect.Value) (int, error) {
-	start := len(enc.buf)
-	enc.buf = append(enc.buf, 0, 0, 0, 0)
-	count := 4 + 1 // sizeof(int) + sizeof(\0)
-
-	doc := make(docRefl, v.Len())
-	// TODO(cristaloleg): bson.D and bson.M are not supported.
 	if m, ok := v.Interface().(map[string]any); ok {
-		i := 0
-		for k, v := range m {
-			doc[i] = pairRefl{
-				Key: k,
-				Val: reflect.ValueOf(v),
-			}
-			i++
-		}
-	} else {
-		keys := v.MapKeys()
-		for i := range keys {
-			key := keys[i]
-			doc[i] = pairRefl{
-				Key: key.String(),
-				Val: v.MapIndex(key),
-			}
-		}
-	}
-	sortPairRefl(doc)
-
-	for i := 0; i < len(doc); i++ {
-		n, err := enc.writeValue(doc[i].Key, doc[i].Val)
-		if err != nil {
-			return 0, err
-		}
-		count += n
+		return enc.writeD(M(m).AsD())
 	}
 
-	enc.buf = append(enc.buf, 0)
-	enc.buf[start] = byte(count)
-	enc.buf[start+1] = byte(count >> 8)
-	enc.buf[start+2] = byte(count >> 16)
-	enc.buf[start+3] = byte(count >> 24)
-	return count, nil
+	d := make(D, v.Len())
+
+	for i, key := range v.MapKeys() {
+		d[i] = e{
+			K: key.String(),
+			V: v.MapIndex(key).Interface(),
+		}
+	}
+	sort.Sort(d)
+	return enc.writeD(d)
 }
 
 func (enc *Encoder) writeStruct(v reflect.Value) (int, error) {
@@ -192,12 +130,10 @@ func (enc *Encoder) writeStruct(v reflect.Value) (int, error) {
 	enc.buf = append(enc.buf, 0, 0, 0, 0)
 	count := 4 + 1 // sizeof(int) + sizeof(\0)
 
-	doc := getStruct(v).asDoc(v)
+	d := getStruct(v).asDoc(v)
 
-	sort.Sort(doc)
-
-	for i := 0; i < len(doc); i++ {
-		n, err := enc.writeValue(doc[i].Key, doc[i].Val)
+	for i := 0; i < len(d); i++ {
+		n, err := enc.writeAny(d[i].Key, d[i].Val)
 		if err != nil {
 			return 0, err
 		}
@@ -213,30 +149,21 @@ func (enc *Encoder) writeStruct(v reflect.Value) (int, error) {
 }
 
 func (enc *Encoder) writeSlice(v reflect.Value) (int, error) {
+	if a, ok := v.Interface().([]any); ok {
+		return enc.writeA(a)
+	}
+
 	start := len(enc.buf)
 	enc.buf = append(enc.buf, 0, 0, 0, 0)
 	count := 4 + 1 // sizeof(int) + sizeof(\0)
 
-	// TODO(cristaloleg): bson.A is not supported.
-	if a, ok := v.Interface().([]any); ok {
-		for i := range a {
-			n, err := enc.writeValue(strconv.Itoa(i), reflect.ValueOf(a[i]))
-			if err != nil {
-				return 0, err
-			}
-			count += n
+	n := v.Len()
+	for i := 0; i < n; i++ {
+		n, err := enc.writeAny(strconv.Itoa(i), v.Index(i).Interface())
+		if err != nil {
+			return 0, err
 		}
-	} else {
-		n := v.Len()
-		for i := 0; i < n; i++ {
-			val := v.Index(i)
-
-			n, err := enc.writeValue(strconv.Itoa(i), val)
-			if err != nil {
-				return 0, err
-			}
-			count += n
-		}
+		count += n
 	}
 
 	enc.buf = append(enc.buf, 0)
@@ -247,7 +174,66 @@ func (enc *Encoder) writeSlice(v reflect.Value) (int, error) {
 	return count, nil
 }
 
-// TODO(cristaloleg): probably split into simple & compound types.
+func (enc *Encoder) writeAny(ename string, v any) (int, error) {
+	var count int
+
+	switch v := v.(type) {
+	case string:
+		count += enc.writeElem(TypeString, ename)
+		count += enc.writeString(v)
+	case bool:
+		count += enc.writeElem(TypeBool, ename)
+		count += enc.writeBool(v)
+
+	// TODO(cristaloleg): force int64 for int and uint to prevent bit truncation.
+	case int:
+		count += enc.writeElem(TypeInt32, ename)
+		count += enc.writeInt32(int32(v))
+	case uint:
+		count += enc.writeElem(TypeInt32, ename)
+		count += enc.writeInt32(int32(v))
+
+	case int8:
+		count += enc.writeElem(TypeInt32, ename)
+		count += enc.writeInt32(int32(v))
+	case uint8:
+		count += enc.writeElem(TypeInt32, ename)
+		count += enc.writeInt32(int32(v))
+
+	case int16:
+		count += enc.writeElem(TypeInt32, ename)
+		count += enc.writeInt32(int32(v))
+	case uint16:
+		count += enc.writeElem(TypeInt32, ename)
+		count += enc.writeInt32(int32(v))
+
+	case int32:
+		count += enc.writeElem(TypeInt32, ename)
+		count += enc.writeInt32(int32(v))
+	case uint32:
+		count += enc.writeElem(TypeInt32, ename)
+		count += enc.writeInt32(int32(v))
+
+	case int64:
+		count += enc.writeElem(TypeInt64, ename)
+		count += enc.writeInt64(v)
+	case uint64:
+		count += enc.writeElem(TypeInt64, ename)
+		count += enc.writeInt64(int64(v))
+
+	case float64:
+		count += enc.writeElem(TypeDouble, ename)
+		count += enc.writeInt64(int64(math.Float64bits(v)))
+	case float32:
+		count += enc.writeElem(TypeDouble, ename)
+		count += enc.writeInt64(int64(math.Float64bits(float64(v))))
+
+	default:
+		return enc.writeValue(ename, reflect.ValueOf(v))
+	}
+	return count, nil
+}
+
 func (enc *Encoder) writeValue(ename string, v reflect.Value) (int, error) {
 	if v.Kind() == reflect.Interface {
 		return enc.writeValue(ename, v.Elem())
@@ -255,27 +241,6 @@ func (enc *Encoder) writeValue(ename string, v reflect.Value) (int, error) {
 
 	var count int
 	switch v.Kind() {
-	case reflect.String:
-		count += enc.writeElem(TypeString, ename)
-		count += enc.writeString(v.String())
-	case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32:
-		count += enc.writeElem(TypeInt32, ename)
-		count += enc.writeInt32(int32(v.Int()))
-	case reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32:
-		count += enc.writeElem(TypeInt32, ename)
-		count += enc.writeInt32(int32(v.Uint()))
-	case reflect.Uint64:
-		count += enc.writeElem(TypeInt64, ename)
-		count += enc.writeInt64(int64(v.Uint()))
-	case reflect.Int64:
-		count += enc.writeElem(TypeInt64, ename)
-		count += enc.writeInt64(int64(v.Int()))
-	case reflect.Bool:
-		count += enc.writeElem(TypeBool, ename)
-		count += enc.writeBool(v.Bool())
-	case reflect.Float32, reflect.Float64:
-		count += enc.writeElem(TypeDouble, ename)
-		count += enc.writeInt64(int64(math.Float64bits(v.Float())))
 
 	case reflect.Map:
 		count += enc.writeElem(TypeDocument, ename)
