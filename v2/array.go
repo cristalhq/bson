@@ -5,5 +5,5 @@ type RawArray []byte
 
 // Array represents a BSON array in the (partially) decoded form.
 type Array struct {
-	elements []any // BSON type, RawObject, or RawArray
+	elements []any
 }

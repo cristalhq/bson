@@ -26,18 +26,47 @@
 // Raw composite type and scalars are passed by values.
 package bson
 
-import "time"
+import (
+	"time"
+)
 
+// Type represents a BSON type.
 type Type interface {
 	ScalarType | CompositeType
 }
 
+// ScalarType represents a BSON scalar type.
 type ScalarType interface {
 	float64 | string | Binary | ObjectID | bool | time.Time | NullType | Regex | int32 | Timestamp | int64
 }
 
+// CompositeType represents a BSON composite type (including raw types).
 type CompositeType interface {
 	*Object | *Array | RawObject | RawArray
+}
+
+func checkType(v any) bool {
+	switch v.(type) {
+	case *Object:
+	case RawObject:
+	case *Array:
+	case RawArray:
+	case float64:
+	case string:
+	case Binary:
+	case ObjectID:
+	case bool:
+	case time.Time:
+	case NullType:
+	case Regex:
+	case int32:
+	case Timestamp:
+	case int64:
+	default:
+		return false
+	}
+
+	return true
 }
 
 const (

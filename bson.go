@@ -30,11 +30,6 @@ import (
 	"strconv"
 )
 
-type field struct {
-	name  string
-	value any // BSON type, RawObject, or RawArray
-}
-
 // Marshaler is the interface implemented by types that
 // can marshal themselves into valid BSON.
 type Marshaler interface {

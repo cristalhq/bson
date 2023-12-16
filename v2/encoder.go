@@ -1,6 +1,7 @@
 package bson
 
 import (
+	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
@@ -10,52 +11,63 @@ import (
 
 // Encoder writes BSON values to an output stream.
 type Encoder struct {
-	w io.Writer
+	w *bufio.Writer
 }
 
 // NewEncoder returns a new encoder that writes to w.
 func NewEncoder(w io.Writer) *Encoder {
 	return &Encoder{
-		w: w,
+		w: bufio.NewWriter(w),
 	}
 }
 
-// encode encodes the given value to BSON.
+// Encode encodes the given value to BSON.
 func (enc *Encoder) Encode(v any) error {
+	var err error
 	switch v := v.(type) {
 	case *Object:
-		return enc.encodeObject(v)
+		err = enc.encodeObject(v)
 	case RawObject:
-		return enc.encodeRawObject(v)
+		err = enc.encodeRawObject(v)
 	case *Array:
-		return enc.encodeArray(v)
+		err = enc.encodeArray(v)
 	case RawArray:
-		return enc.encodeRawArray(v)
+		err = enc.encodeRawArray(v)
 	case float64:
-		return enc.encodeFloat64(v)
+		err = enc.encodeFloat64(v)
 	case string:
-		return enc.encodeString(v)
+		err = enc.encodeString(v)
 	case Binary:
-		return enc.encodeBinary(v)
+		err = enc.encodeBinary(v)
 	case ObjectID:
-		return enc.encodeObjectID(v)
+		err = enc.encodeObjectID(v)
 	case bool:
-		return enc.encodeBool(v)
+		err = enc.encodeBool(v)
 	case time.Time:
-		return enc.encodeTime(v)
+		err = enc.encodeTime(v)
 	case NullType:
-		return enc.encodeNullType(v)
+		err = enc.encodeNullType(v)
 	case Regex:
-		return enc.encodeRegex(v)
+		err = enc.encodeRegex(v)
 	case int32:
-		return enc.encodeInt32(v)
+		err = enc.encodeInt32(v)
 	case Timestamp:
-		return enc.encodeTimestamp(v)
+		err = enc.encodeTimestamp(v)
 	case int64:
-		return enc.encodeInt64(v)
+		err = enc.encodeInt64(v)
 	default:
-		panic(fmt.Sprintf("unsupported type %T", v))
+		return fmt.Errorf("unsupported type %T", v)
 	}
+
+	if err != nil {
+		return err
+	}
+
+	if err = enc.w.Flush(); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (enc *Encoder) encodeObject(v *Object) error {
@@ -66,7 +78,7 @@ func (enc *Encoder) encodeObject(v *Object) error {
 	for _, f := range v.fields {
 		switch v := f.value.(type) {
 		case *Object:
-			if _, err = oEnc.w.Write([]byte{TagObject}); err != nil {
+			if err = oEnc.w.WriteByte(TagObject); err != nil {
 				return err
 			}
 			if err = oEnc.encodeString(f.name); err != nil {
@@ -77,7 +89,7 @@ func (enc *Encoder) encodeObject(v *Object) error {
 			}
 
 		case RawObject:
-			if _, err = oEnc.w.Write([]byte{TagObject}); err != nil {
+			if err = oEnc.w.WriteByte(TagObject); err != nil {
 				return err
 			}
 			if err = oEnc.encodeString(f.name); err != nil {
@@ -88,7 +100,7 @@ func (enc *Encoder) encodeObject(v *Object) error {
 			}
 
 		case *Array:
-			if _, err = oEnc.w.Write([]byte{TagArray}); err != nil {
+			if err = oEnc.w.WriteByte(TagArray); err != nil {
 				return err
 			}
 			if err = oEnc.encodeString(f.name); err != nil {
@@ -99,7 +111,7 @@ func (enc *Encoder) encodeObject(v *Object) error {
 			}
 
 		case RawArray:
-			if _, err = oEnc.w.Write([]byte{TagArray}); err != nil {
+			if err = oEnc.w.WriteByte(TagArray); err != nil {
 				return err
 			}
 			if err = oEnc.encodeString(f.name); err != nil {
@@ -110,7 +122,7 @@ func (enc *Encoder) encodeObject(v *Object) error {
 			}
 
 		case float64:
-			if _, err = oEnc.w.Write([]byte{TagFloat64}); err != nil {
+			if err = oEnc.w.WriteByte(TagFloat64); err != nil {
 				return err
 			}
 			if err = oEnc.encodeString(f.name); err != nil {
@@ -121,7 +133,7 @@ func (enc *Encoder) encodeObject(v *Object) error {
 			}
 
 		case string:
-			if _, err = oEnc.w.Write([]byte{TagString}); err != nil {
+			if err = oEnc.w.WriteByte(TagString); err != nil {
 				return err
 			}
 			if err = oEnc.encodeString(f.name); err != nil {
@@ -132,7 +144,7 @@ func (enc *Encoder) encodeObject(v *Object) error {
 			}
 
 		case Binary:
-			if _, err = oEnc.w.Write([]byte{TagBinary}); err != nil {
+			if err = oEnc.w.WriteByte(TagBinary); err != nil {
 				return err
 			}
 			if err = oEnc.encodeString(f.name); err != nil {
@@ -143,7 +155,7 @@ func (enc *Encoder) encodeObject(v *Object) error {
 			}
 
 		case ObjectID:
-			if _, err = oEnc.w.Write([]byte{TagObjectID}); err != nil {
+			if err = oEnc.w.WriteByte(TagObjectID); err != nil {
 				return err
 			}
 			if err = oEnc.encodeString(f.name); err != nil {
@@ -154,7 +166,7 @@ func (enc *Encoder) encodeObject(v *Object) error {
 			}
 
 		case bool:
-			if _, err = oEnc.w.Write([]byte{TagBool}); err != nil {
+			if err = oEnc.w.WriteByte(TagBool); err != nil {
 				return err
 			}
 			if err = oEnc.encodeString(f.name); err != nil {
@@ -165,7 +177,7 @@ func (enc *Encoder) encodeObject(v *Object) error {
 			}
 
 		case time.Time:
-			if _, err = oEnc.w.Write([]byte{TagTime}); err != nil {
+			if err = oEnc.w.WriteByte(TagTime); err != nil {
 				return err
 			}
 			if err = oEnc.encodeString(f.name); err != nil {
@@ -176,7 +188,7 @@ func (enc *Encoder) encodeObject(v *Object) error {
 			}
 
 		case NullType:
-			if _, err = oEnc.w.Write([]byte{TagNullType}); err != nil {
+			if err = oEnc.w.WriteByte(TagNullType); err != nil {
 				return err
 			}
 			if err = oEnc.encodeString(f.name); err != nil {
@@ -187,7 +199,7 @@ func (enc *Encoder) encodeObject(v *Object) error {
 			}
 
 		case Regex:
-			if _, err = oEnc.w.Write([]byte{TagRegex}); err != nil {
+			if err = oEnc.w.WriteByte(TagRegex); err != nil {
 				return err
 			}
 			if err = oEnc.encodeString(f.name); err != nil {
@@ -198,7 +210,7 @@ func (enc *Encoder) encodeObject(v *Object) error {
 			}
 
 		case int32:
-			if _, err = oEnc.w.Write([]byte{TagInt32}); err != nil {
+			if err = oEnc.w.WriteByte(TagInt32); err != nil {
 				return err
 			}
 			if err = oEnc.encodeString(f.name); err != nil {
@@ -209,7 +221,7 @@ func (enc *Encoder) encodeObject(v *Object) error {
 			}
 
 		case Timestamp:
-			if _, err = oEnc.w.Write([]byte{TagTimestamp}); err != nil {
+			if err = oEnc.w.WriteByte(TagTimestamp); err != nil {
 				return err
 			}
 			if err = oEnc.encodeString(f.name); err != nil {
@@ -220,7 +232,7 @@ func (enc *Encoder) encodeObject(v *Object) error {
 			}
 
 		case int64:
-			if _, err = oEnc.w.Write([]byte{TagInt64}); err != nil {
+			if err = oEnc.w.WriteByte(TagInt64); err != nil {
 				return err
 			}
 			if err = oEnc.encodeString(f.name); err != nil {
@@ -235,10 +247,11 @@ func (enc *Encoder) encodeObject(v *Object) error {
 		}
 	}
 
-	l := buf.Len() + 5
-	if l > MaxObjectSize {
-		return fmt.Errorf("object size %d exceeds maximum allowed %d", l, MaxObjectSize)
+	if err = oEnc.w.Flush(); err != nil {
+		return err
 	}
+
+	l := buf.Len() + 5
 
 	var b [4]byte
 	binary.LittleEndian.PutUint32(b[:], uint32(l))
@@ -250,7 +263,7 @@ func (enc *Encoder) encodeObject(v *Object) error {
 		return err
 	}
 
-	if _, err = enc.w.Write([]byte{0x00}); err != nil {
+	if err = enc.w.WriteByte(0x00); err != nil {
 		return err
 	}
 
@@ -276,7 +289,23 @@ func (enc *Encoder) encodeFloat64(v float64) error {
 }
 
 func (enc *Encoder) encodeString(v string) error {
-	panic("TODO")
+	var err error
+
+	var b [4]byte
+	binary.LittleEndian.PutUint32(b[:], uint32(len(v)+1))
+	if _, err = enc.w.Write(b[:]); err != nil {
+		return err
+	}
+
+	if _, err = io.WriteString(enc.w, v); err != nil {
+		return err
+	}
+
+	if err = enc.w.WriteByte(0x00); err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (enc *Encoder) encodeBinary(v Binary) error {
