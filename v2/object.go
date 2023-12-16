@@ -1,5 +1,7 @@
 package bson
 
+const MaxObjectSize = 16 * 1024 * 1024
+
 // RawObject represents a BSON object a.k.a document in the binary encoded form.
 type RawObject []byte
 
