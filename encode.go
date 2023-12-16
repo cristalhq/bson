@@ -175,63 +175,47 @@ func (enc *Encoder) writeSlice(v reflect.Value) (int, error) {
 }
 
 func (enc *Encoder) writeAny(ename string, v any) (int, error) {
-	var count int
-
+	// TODO(cristaloleg): support bson.Marshaler.
 	switch v := v.(type) {
 	case string:
-		count += enc.writeElem(TypeString, ename)
-		count += enc.writeString(v)
+		return enc.writeString(ename, v), nil
 	case bool:
-		count += enc.writeElem(TypeBool, ename)
-		count += enc.writeBool(v)
+		return enc.writeBool(ename, v), nil
 
 	// TODO(cristaloleg): force int64 for int and uint to prevent bit truncation.
 	case int:
-		count += enc.writeElem(TypeInt32, ename)
-		count += enc.writeInt32(int32(v))
+		return enc.writeInt32(ename, int32(v)), nil
 	case uint:
-		count += enc.writeElem(TypeInt32, ename)
-		count += enc.writeInt32(int32(v))
+		return enc.writeInt32(ename, int32(v)), nil
 
 	case int8:
-		count += enc.writeElem(TypeInt32, ename)
-		count += enc.writeInt32(int32(v))
+		return enc.writeInt32(ename, int32(v)), nil
 	case uint8:
-		count += enc.writeElem(TypeInt32, ename)
-		count += enc.writeInt32(int32(v))
+		return enc.writeInt32(ename, int32(v)), nil
 
 	case int16:
-		count += enc.writeElem(TypeInt32, ename)
-		count += enc.writeInt32(int32(v))
+		return enc.writeInt32(ename, int32(v)), nil
 	case uint16:
-		count += enc.writeElem(TypeInt32, ename)
-		count += enc.writeInt32(int32(v))
+		return enc.writeInt32(ename, int32(v)), nil
 
 	case int32:
-		count += enc.writeElem(TypeInt32, ename)
-		count += enc.writeInt32(int32(v))
+		return enc.writeInt32(ename, int32(v)), nil
 	case uint32:
-		count += enc.writeElem(TypeInt32, ename)
-		count += enc.writeInt32(int32(v))
+		return enc.writeInt32(ename, int32(v)), nil
 
 	case int64:
-		count += enc.writeElem(TypeInt64, ename)
-		count += enc.writeInt64(v)
+		return enc.writeInt64(ename, v), nil
 	case uint64:
-		count += enc.writeElem(TypeInt64, ename)
-		count += enc.writeInt64(int64(v))
+		return enc.writeInt64(ename, int64(v)), nil
 
 	case float64:
-		count += enc.writeElem(TypeDouble, ename)
-		count += enc.writeInt64(int64(math.Float64bits(v)))
+		return enc.writeFloat64(ename, v), nil
 	case float32:
-		count += enc.writeElem(TypeDouble, ename)
-		count += enc.writeInt64(int64(math.Float64bits(float64(v))))
+		return enc.writeFloat64(ename, float64(v)), nil
 
 	default:
 		return enc.writeValue(ename, reflect.ValueOf(v))
 	}
-	return count, nil
 }
 
 func (enc *Encoder) writeValue(ename string, v reflect.Value) (int, error) {
@@ -279,26 +263,51 @@ func (enc *Encoder) writeElem(typ Type, key string) int {
 	return 1 + len(key) + 1
 }
 
-func (enc *Encoder) writeString(s string) int {
+func (enc *Encoder) writeString(key, s string) int {
 	size := len(s) + 1
-	enc.writeInt32(int32(size))
+	enc.buf = append(enc.buf, byte(TypeString))
+	enc.buf = append(enc.buf, key...)
+	enc.buf = append(enc.buf,
+		0,
+		byte(size),
+		byte(size>>8),
+		byte(size>>16),
+		byte(size>>24),
+	)
 	enc.buf = append(enc.buf, s...)
 	enc.buf = append(enc.buf, 0)
-	return 4 + size
+	return (1 + len(key) + 1) + (4 + size)
 }
 
-func (enc *Encoder) writeInt32(v int32) int {
+func (enc *Encoder) writeBool(key string, b bool) int {
+	var v byte
+	if b {
+		v = 1
+	}
+	enc.buf = append(enc.buf, byte(TypeBool))
+	enc.buf = append(enc.buf, key...)
+	enc.buf = append(enc.buf, 0, v)
+	return 1 + len(key) + 1 + 1
+}
+
+func (enc *Encoder) writeInt32(key string, v int32) int {
+	enc.buf = append(enc.buf, byte(TypeInt32))
+	enc.buf = append(enc.buf, key...)
 	enc.buf = append(enc.buf,
+		0,
 		byte(v),
 		byte(v>>8),
 		byte(v>>16),
 		byte(v>>24),
 	)
-	return 4
+	return (1 + len(key) + 1) + 4
 }
 
-func (enc *Encoder) writeInt64(v int64) int {
+func (enc *Encoder) writeInt64(key string, v int64) int {
+	enc.buf = append(enc.buf, byte(TypeInt64))
+	enc.buf = append(enc.buf, key...)
 	enc.buf = append(enc.buf,
+		0,
 		byte(v),
 		byte(v>>8),
 		byte(v>>16),
@@ -308,14 +317,23 @@ func (enc *Encoder) writeInt64(v int64) int {
 		byte(v>>48),
 		byte(v>>56),
 	)
-	return 8
+	return (1 + len(key) + 1) + 8
 }
 
-func (enc *Encoder) writeBool(b bool) int {
-	var v byte
-	if b {
-		v = 1
-	}
-	enc.buf = append(enc.buf, v)
-	return 1
+func (enc *Encoder) writeFloat64(key string, f float64) int {
+	v := int64(math.Float64bits(f))
+	enc.buf = append(enc.buf, byte(TypeDouble))
+	enc.buf = append(enc.buf, key...)
+	enc.buf = append(enc.buf,
+		0,
+		byte(v),
+		byte(v>>8),
+		byte(v>>16),
+		byte(v>>24),
+		byte(v>>32),
+		byte(v>>40),
+		byte(v>>48),
+		byte(v>>56),
+	)
+	return (1 + len(key) + 1) + 8
 }
