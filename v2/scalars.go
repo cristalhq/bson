@@ -1,6 +1,6 @@
 package bson
 
-//go:generate stringer -linecomment -type BinarySubtype
+//go:generate stringer -linecomment -output scalars_string.go -type BinarySubtype
 
 // BinarySubtype represents BSON Binary's subtype.
 type BinarySubtype byte
