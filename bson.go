@@ -26,62 +26,13 @@ package bson
 
 import (
 	"bytes"
-	"fmt"
 	"sort"
 	"strconv"
 )
 
-type rawObject []byte
-
-type rawArray []byte
-
 type field struct {
 	name  string
-	value any // BSON type, rawObject, or rawArray
-}
-
-type Object struct {
-	fields []field
-}
-
-type Array struct {
-	elements []any // BSON type, rawObject, or rawArray
-}
-
-func (o *Object) MarshalBinary() ([]byte, error) {
-	res := make([]byte, 0, 5)
-
-	for _, f := range o.fields {
-		var t byte
-		var b []byte
-		var err error
-
-		switch value := f.value.(type) {
-		case rawObject:
-			t = 0x03
-			b = value
-		case rawArray:
-			t = 0x04
-			b = value
-		case float64:
-			t = 0x01
-			b, err = marshalDouble(value)
-			if err != nil {
-				return nil, fmt.Errorf("marshal double: %w", err)
-			}
-
-			// ...
-		}
-
-		res = append(res, t)
-		res = append(res, f.name...)
-		res = append(res, 0x00)
-		res = append(res, b...)
-	}
-
-	res = append(res, 0x00)
-
-	return res, nil
+	value any // BSON type, RawObject, or RawArray
 }
 
 // Marshaler is the interface implemented by types that
