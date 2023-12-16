@@ -28,6 +28,7 @@ import (
 	"bytes"
 	"fmt"
 	"sort"
+	"strconv"
 )
 
 type rawObject []byte
@@ -133,6 +134,14 @@ func Unmarshal(data []byte, v any) error {
 //	bson.A{"hello", "world", 3.14159, bson.D{{"foo", 12345}}}
 type A []any
 
+func (a A) AsD() D {
+	d := make(D, len(a))
+	for i, v := range a {
+		d[i] = e{K: strconv.Itoa(i), V: v}
+	}
+	return d
+}
+
 // D is an ordered representation of a BSON document.
 //
 // Example usage:
@@ -146,9 +155,17 @@ type e struct {
 	V any
 }
 
-func (doc D) Len() int           { return len(doc) }
-func (doc D) Less(i, j int) bool { return doc[i].K < doc[j].K }
-func (doc D) Swap(i, j int)      { doc[i], doc[j] = doc[j], doc[i] }
+func (d D) Len() int           { return len(d) }
+func (d D) Less(i, j int) bool { return d[i].K < d[j].K }
+func (d D) Swap(i, j int)      { d[i], d[j] = d[j], d[i] }
+
+func (d D) AsM() M {
+	m := make(M, len(d))
+	for _, pair := range d {
+		m[pair.K] = pair.V
+	}
+	return m
+}
 
 // M is an unordered representation of a BSON document.
 //
@@ -168,3 +185,9 @@ func (m M) AsD() D {
 	sort.Sort(d)
 	return d
 }
+
+// RawArray represents a raw array which will be encoded or decoded as is.
+type RawArray []byte
+
+// RawObject represents a raw object which will be encoded or decoded as is.
+type RawObject []byte

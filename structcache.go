@@ -3,6 +3,7 @@ package bson
 import (
 	"errors"
 	"reflect"
+	"sort"
 	"strings"
 	"sync"
 )
@@ -30,9 +31,10 @@ func (si *structInfo) asDoc(val reflect.Value) docRefl {
 
 		doc = append(doc, pairRefl{
 			Key: info.Key,
-			Val: value,
+			Val: value.Interface(),
 		})
 	}
+	sort.Sort(doc)
 	return doc
 }
 

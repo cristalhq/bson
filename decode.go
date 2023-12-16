@@ -22,9 +22,13 @@ func NewDecodeBytes(buf []byte) *Decoder {
 	return d
 }
 
-func (d *Decoder) Decode(v any) error {
-	if len(d.data) < 4 {
+func (dec *Decoder) Decode(v any) error {
+	if len(dec.data) < 4 {
 		return errors.New("not enough data") // TODO(cristaloleg): static error?
+	}
+
+	if d, ok := v.(*D); ok {
+		return readD(dec.data, d)
 	}
 
 	rv := reflect.ValueOf(v)
@@ -37,12 +41,110 @@ func (d *Decoder) Decode(v any) error {
 
 	switch rv := rv.Elem(); rv.Kind() {
 	case reflect.Struct:
-		return decodeStruct(d.data, rv)
+		return decodeStruct(dec.data, rv)
 	case reflect.Map:
-		return decodeMap(d.data, rv)
+		return decodeMap(dec.data, rv)
 	default:
 		return errors.New("unmarshal unsupported: " + rv.Type().String())
 	}
+}
+
+func readD(data []byte, d *D) error {
+	iter, err := newReader(data)
+	if err != nil {
+		return err
+	}
+
+	for iter.Next() {
+		typ, name, element := iter.Peek()
+
+		key := trimlast(name)
+
+		switch typ {
+		case TypeDouble:
+			val := uint64(element[0]) |
+				uint64(element[1])<<8 |
+				uint64(element[2])<<16 |
+				uint64(element[3])<<24 |
+				uint64(element[4])<<32 |
+				uint64(element[5])<<40 |
+				uint64(element[6])<<48 |
+				uint64(element[7])<<56
+			*d = append(*d, e{K: key, V: math.Float64frombits(val)})
+
+		case TypeString:
+			*d = append(*d, e{K: key, V: trimlast(element)})
+
+		case TypeDocument:
+			m := make(map[string]any)
+			vv := reflect.ValueOf(m)
+			if err := decodeMap(element, vv); err != nil {
+				return err
+			}
+			*d = append(*d, e{K: key, V: m})
+
+		case TypeArray:
+			s := make([]any, 0)
+			if err := decodeSlice(element, &s); err != nil {
+				return err
+			}
+			*d = append(*d, e{K: key, V: s})
+
+		case TypeObjectID:
+			var oid ObjectID
+			copy(oid[:], element)
+			*d = append(*d, e{K: key, V: nil})
+
+		case TypeBool:
+			*d = append(*d, e{K: key, V: element[0] == 1})
+
+		case TypeInt32:
+			element := int32(element[0]) |
+				int32(element[1])<<8 |
+				int32(element[2])<<16 |
+				int32(element[3])<<24
+			*d = append(*d, e{K: key, V: element})
+
+		case TypeTimestamp:
+			ts := Timestamp(element[0]) |
+				Timestamp(element[1])<<8 |
+				Timestamp(element[2])<<16 |
+				Timestamp(element[3])<<24 |
+				Timestamp(element[4])<<32 |
+				Timestamp(element[5])<<40 |
+				Timestamp(element[6])<<48 |
+				Timestamp(element[7])<<56
+			*d = append(*d, e{K: key, V: ts})
+
+		case TypeInt64:
+			element := int64(element[0]) |
+				int64(element[1])<<8 |
+				int64(element[2])<<16 |
+				int64(element[3])<<24 |
+				int64(element[4])<<32 |
+				int64(element[5])<<40 |
+				int64(element[6])<<48 |
+				int64(element[7])<<56
+			*d = append(*d, e{K: key, V: element})
+
+		case TypeBinary,
+			TypeUndefined,
+			TypeDateTime,
+			TypeRegex,
+			TypeDBPointer,
+			TypeCodeWithScope,
+			TypeSymbol,
+			TypeJavaScriptScope,
+			TypeDecimal,
+			TypeMinKey,
+			TypeMaxKey:
+			return fmt.Errorf("unsupported type %x", typ)
+
+		default:
+			return fmt.Errorf("unknown element type %x", typ)
+		}
+	}
+	return iter.Err()
 }
 
 func decodeStruct(data []byte, v reflect.Value) error {
