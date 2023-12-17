@@ -22,7 +22,7 @@ func TestScalars(t *testing.T) {
 		v: int64(1234567890123456789),
 		b: []byte{0x15, 0x81, 0xe9, 0x7d, 0xf4, 0x10, 0x22, 0x11},
 	}} {
-		t.Run(fmt.Sprintf("%d_%[1]T(%[1]v)", i, tc.v), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%[1]d_%[2]T(%[2]v)", i, tc.v), func(t *testing.T) {
 			s := SizeAny(tc.v)
 			if s != len(tc.b) {
 				t.Fatalf("Size(%[1]T(%[1]v)) = %[2]d, want %[3]d", tc.v, s, len(tc.b))
