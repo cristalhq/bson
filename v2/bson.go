@@ -45,7 +45,8 @@ type CompositeType interface {
 	*Object | *Array | RawObject | RawArray
 }
 
-func checkType(v any) bool {
+// validType checks if v is a valid BSON type (including raw types).
+func validType(v any) bool {
 	switch v.(type) {
 	case *Object:
 	case RawObject:

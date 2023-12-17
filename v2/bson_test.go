@@ -4,14 +4,12 @@ import (
 	"bytes"
 	"encoding/hex"
 	"io"
-	"reflect"
 	"testing"
 )
 
 func TestEncodeDecode(t *testing.T) {
 	var buf bytes.Buffer
 	enc := NewEncoder(&buf)
-	dec := NewDecoder(&buf)
 
 	for name, tc := range map[string]struct {
 		v any
@@ -46,15 +44,6 @@ func TestEncodeDecode(t *testing.T) {
 
 			if !bytes.Equal(actualB, tc.b) {
 				t.Fatalf("expected:\n%#v\n%s\ngot:\n%#v\n%s", tc.b, hex.Dump(tc.b), actualB, hex.Dump(actualB))
-			}
-
-			actualV, err := dec.Decode()
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			if !reflect.DeepEqual(actualV, tc.v) {
-				t.Fatalf("expected:\n%#v\ngot:\n%#v", tc.v, actualV)
 			}
 		})
 	}

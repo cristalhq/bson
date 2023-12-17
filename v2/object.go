@@ -35,7 +35,7 @@ func NewObject(pairs ...any) (*Object, error) {
 		}
 
 		value := pairs[i+1]
-		if !checkType(value) {
+		if !validType(value) {
 			return nil, fmt.Errorf("invalid field value type: %T", value)
 		}
 
