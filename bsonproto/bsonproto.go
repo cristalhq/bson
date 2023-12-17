@@ -1,6 +1,8 @@
+// Package bsonproto provides primitives for encoding and decoding of BSON.
 package bsonproto
 
 import (
+	"errors"
 	"fmt"
 	"time"
 )
@@ -10,20 +12,14 @@ type ScalarType interface {
 	float64 | string | Binary | ObjectID | bool | time.Time | NullType | Regex | int32 | Timestamp | int64
 }
 
-type Binary struct{}
-
-type ObjectID struct{}
-
-type NullType struct{}
-
-type Regex struct{}
-
-type Timestamp struct{}
-
+// Size returns a size of the encoding of value v in bytes.
 func Size[T ScalarType](v T) int {
 	return SizeAny(v)
 }
 
+// SizeAny returns a size of the encoding of value v in bytes.
+//
+// It panics if v is not a ScalarType.
 func SizeAny(v any) int {
 	switch v := any(v).(type) {
 	case string:
@@ -37,12 +33,24 @@ func SizeAny(v any) int {
 	}
 }
 
+// Encode encodes value v into b.
+//
+// b must be at least Size(v) bytes long; otherwise, Encode will panic.
+// Only b[0:Size(v)] bytes are modified.
 func Encode[T ScalarType](b []byte, v T) {
 	EncodeAny(b, v)
 }
 
+// EncodeAny encodes value v into b.
+//
+// b must be at least Size(v) bytes long; otherwise, EncodeAny will panic.
+// Only b[0:Size(v)] bytes are modified.
+//
+// It panics if v is not a ScalarType.
 func EncodeAny(b []byte, v any) {
 	switch v := any(v).(type) {
+	case string:
+		EncodeString(b, v)
 	case int32:
 		EncodeInt32(b, v)
 	case int64:
@@ -52,13 +60,27 @@ func EncodeAny(b []byte, v any) {
 	}
 }
 
+// Decode decodes value from b into v.
+//
+// If there is not enough bytes, Decode will return a wrapped ErrDecodeShortInput.
+// If the input is otherwise invalid, a wrapped ErrDecodeInvalidInput is returned.
+//
+// If the value can't be decoded, a wrapped ErrDecodeInvalidInput is returned.
 func Decode[T ScalarType](v *T, b []byte) error {
 	return DecodeAny(v, b)
 }
 
+// DecodeAny decodes value from b into v (which should be a pointer).
+//
+// If there is not enough bytes, DecodeAny will return a wrapped ErrDecodeShortInput.
+// If the input is otherwise invalid, a wrapped ErrDecodeInvalidInput is returned.
+//
+// It panics if v is not a pointer to ScalarType.
 func DecodeAny(v any, b []byte) error {
 	var err error
 	switch v := any(v).(type) {
+	case *string:
+		*v, err = DecodeString(b)
 	case *int32:
 		*v, err = DecodeInt32(b)
 	case *int64:
@@ -69,3 +91,11 @@ func DecodeAny(v any, b []byte) error {
 
 	return err
 }
+
+var (
+	// ErrDecodeShortInput is returned wrapped by Decode functions if the input bytes slice is too short.
+	ErrDecodeShortInput = errors.New("bsonproto: short input")
+
+	// ErrDecodeInvalidInput is returned wrapped by Decode functions if the input bytes slice is invalid.
+	ErrDecodeInvalidInput = errors.New("bsonproto: invalid input")
+)
