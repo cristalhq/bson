@@ -22,8 +22,10 @@ func Size[T ScalarType](v T) int {
 // It panics if v is not a ScalarType.
 func SizeAny(v any) int {
 	switch v := any(v).(type) {
+	case float64:
+		return SizeFloat64(v)
 	case string:
-		return len(v) + 5
+		return SizeString(v)
 	case int32:
 		return SizeInt32(v)
 	case int64:
@@ -49,6 +51,8 @@ func Encode[T ScalarType](b []byte, v T) {
 // It panics if v is not a ScalarType.
 func EncodeAny(b []byte, v any) {
 	switch v := any(v).(type) {
+	case float64:
+		EncodeFloat64(b, v)
 	case string:
 		EncodeString(b, v)
 	case int32:
@@ -79,6 +83,8 @@ func Decode[T ScalarType](v *T, b []byte) error {
 func DecodeAny(v any, b []byte) error {
 	var err error
 	switch v := any(v).(type) {
+	case *float64:
+		*v, err = DecodeFloat64(b)
 	case *string:
 		*v, err = DecodeString(b)
 	case *int32:
