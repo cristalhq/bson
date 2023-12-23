@@ -12,6 +12,12 @@ type Marshaler interface {
 	MarshalBSON() ([]byte, error)
 }
 
+// Appender is the interface implemented by types that
+// can append marshaled BSON representation of itself.
+type Appender interface {
+	AppendBSON([]byte) ([]byte, error)
+}
+
 // Marshal returns BSON encoding of v.
 func Marshal(v any) ([]byte, error) {
 	buf := &bytes.Buffer{}

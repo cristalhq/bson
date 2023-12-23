@@ -42,7 +42,7 @@ func TestScalars(t *testing.T) {
 			}
 
 			actualV := reflect.New(reflect.TypeOf(tc.v)).Interface() // actualV := new(T)
-			err := DecodeAny(actualV, actualB)
+			err := DecodeAny(actualB, actualV)
 			if err != nil {
 				t.Fatalf("Decode(%v): %s", actualB, err)
 			}
@@ -136,7 +136,7 @@ func TestScalarsDecodeErrors(t *testing.T) {
 	}} {
 		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			v := reflect.New(reflect.TypeOf(tc.v)).Interface() // v := new(T)
-			err := DecodeAny(v, tc.b)
+			err := DecodeAny(tc.b, v)
 			if !errors.Is(err, tc.err) {
 				t.Errorf("Decode(%v): %v, want %v", tc.b, err, tc.err)
 			}

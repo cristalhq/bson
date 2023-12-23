@@ -21,7 +21,7 @@ func Size[T ScalarType](v T) int {
 //
 // It panics if v is not a ScalarType.
 func SizeAny(v any) int {
-	switch v := any(v).(type) {
+	switch v := v.(type) {
 	case float64:
 		return SizeFloat64(v)
 	case string:
@@ -50,7 +50,7 @@ func Encode[T ScalarType](b []byte, v T) {
 //
 // It panics if v is not a ScalarType.
 func EncodeAny(b []byte, v any) {
-	switch v := any(v).(type) {
+	switch v := v.(type) {
 	case float64:
 		EncodeFloat64(b, v)
 	case string:
@@ -70,19 +70,19 @@ func EncodeAny(b []byte, v any) {
 // If the input is otherwise invalid, a wrapped ErrDecodeInvalidInput is returned.
 //
 // If the value can't be decoded, a wrapped ErrDecodeInvalidInput is returned.
-func Decode[T ScalarType](v *T, b []byte) error {
-	return DecodeAny(v, b)
+func Decode[T ScalarType](b []byte, v *T) error {
+	return DecodeAny(b, v)
 }
 
-// DecodeAny decodes value from b into v (which should be a pointer).
+// DecodeAny decodes value from b into v.
 //
 // If there is not enough bytes, DecodeAny will return a wrapped ErrDecodeShortInput.
 // If the input is otherwise invalid, a wrapped ErrDecodeInvalidInput is returned.
 //
 // It panics if v is not a pointer to ScalarType.
-func DecodeAny(v any, b []byte) error {
+func DecodeAny(b []byte, v any) error {
 	var err error
-	switch v := any(v).(type) {
+	switch v := v.(type) {
 	case *float64:
 		*v, err = DecodeFloat64(b)
 	case *string:
