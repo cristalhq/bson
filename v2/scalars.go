@@ -39,20 +39,3 @@ type Binary struct {
 	B       []byte
 	Subtype BinarySubtype
 }
-
-// ObjectID represents a BSON ObjectID data in the decoded form.
-type ObjectID [12]byte
-
-// NullType represents a BSON null type.
-type NullType struct{}
-
-// Null represents a BSON null value.
-var Null NullType
-
-// Regex represents a BSON ObjectID regular expression in the decoded form.
-type Regex struct {
-	// TODO
-}
-
-// Timestamp represents a BSON timestamp in the decoded form.
-type Timestamp uint64

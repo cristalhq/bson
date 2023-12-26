@@ -27,17 +27,12 @@
 package bson
 
 import (
-	"time"
+	"github.com/cristalhq/bson/bsonproto"
 )
 
 // Type represents a BSON type.
 type Type interface {
-	ScalarType | CompositeType
-}
-
-// ScalarType represents a BSON scalar type.
-type ScalarType interface {
-	float64 | string | Binary | ObjectID | bool | time.Time | NullType | Regex | int32 | Timestamp | int64
+	bsonproto.ScalarType | CompositeType
 }
 
 // CompositeType represents a BSON composite type (including raw types).
@@ -54,14 +49,7 @@ func validType(v any) bool {
 	case RawArray:
 	case float64:
 	case string:
-	case Binary:
-	case ObjectID:
-	case bool:
-	case time.Time:
-	case NullType:
-	case Regex:
 	case int32:
-	case Timestamp:
 	case int64:
 	default:
 		return false

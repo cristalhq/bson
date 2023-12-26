@@ -1,76 +1,82 @@
 package bson
 
 import (
-	"bufio"
 	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
-	"time"
+	"strconv"
+
+	"github.com/cristalhq/bson/bsonproto"
 )
 
 // Encoder writes BSON values to an output stream.
 type Encoder struct {
-	w *bufio.Writer
+	p *pool
 }
 
 // NewEncoder returns a new encoder that writes to w.
 func NewEncoder(w io.Writer) *Encoder {
 	return &Encoder{
-		w: bufio.NewWriter(w),
+		p: new(pool),
 	}
 }
 
-// Encode encodes the given value to BSON.
-func (enc *Encoder) Encode(v any) error {
-	var err error
-	switch v := v.(type) {
-	case *Object:
-		err = enc.encodeObject(v)
-	case RawObject:
-		err = enc.encodeRawObject(v)
-	case *Array:
-		err = enc.encodeArray(v)
-	case RawArray:
-		err = enc.encodeRawArray(v)
-	case float64:
-		err = enc.encodeFloat64(v)
-	case string:
-		err = enc.encodeString(v)
-	case Binary:
-		err = enc.encodeBinary(v)
-	case ObjectID:
-		err = enc.encodeObjectID(v)
-	case bool:
-		err = enc.encodeBool(v)
-	case time.Time:
-		err = enc.encodeTime(v)
-	case NullType:
-		err = enc.encodeNullType(v)
-	case Regex:
-		err = enc.encodeRegex(v)
-	case int32:
-		err = enc.encodeInt32(v)
-	case Timestamp:
-		err = enc.encodeTimestamp(v)
-	case int64:
-		err = enc.encodeInt64(v)
-	default:
-		return fmt.Errorf("unsupported type %T", v)
+func encodeObjectSize(v *Object) int {
+	size := 4 // length
+
+	for _, f := range v.fields {
+		size += 1 + len(f.name) + 1 // tag + name + terminating 0x00
+
+		switch v := f.value.(type) {
+		case *Object:
+			size += encodeObjectSize(v)
+
+		case RawObject:
+			size += len(v)
+
+		case *Array:
+			size += encodeArraySize(v)
+
+		case RawArray:
+			size += len(v)
+
+		default:
+			size += bsonproto.SizeAny(v)
+		}
 	}
 
-	if err != nil {
-		return err
-	}
-
-	if err = enc.w.Flush(); err != nil {
-		return err
-	}
-
-	return nil
+	return size + 1 // terminating 0x00
 }
 
-func (enc *Encoder) encodeObject(v *Object) error {
+func encodeArraySize(v *Array) int {
+	size := 4 // length
+
+	for i, f := range v.elements {
+		size += 1 + len(strconv.Itoa(i)) + 1 // tag + name + terminating 0x00
+
+		switch v := f.(type) {
+		case *Object:
+			size += encodeObjectSize(v)
+
+		case RawObject:
+			size += len(v)
+
+		case *Array:
+			size += encodeArraySize(v)
+
+		case RawArray:
+			size += len(v)
+
+		default:
+			size += bsonproto.SizeAny(v)
+		}
+	}
+
+	return size + 1 // terminating 0x00
+}
+
+func (enc *Encoder) EncodeObject(v *Object) error {
 	buf := bytes.NewBuffer(make([]byte, 0, 256))
 	oEnc := NewEncoder(buf)
 
@@ -84,7 +90,7 @@ func (enc *Encoder) encodeObject(v *Object) error {
 			if err = oEnc.encodeString(f.name); err != nil {
 				return err
 			}
-			if err = oEnc.encodeObject(v); err != nil {
+			if err = oEnc.EncodeObject(v); err != nil {
 				return err
 			}
 
@@ -143,72 +149,6 @@ func (enc *Encoder) encodeObject(v *Object) error {
 				return err
 			}
 
-		case Binary:
-			if err = oEnc.w.WriteByte(TagBinary); err != nil {
-				return err
-			}
-			if err = oEnc.encodeString(f.name); err != nil {
-				return err
-			}
-			if err = oEnc.encodeBinary(v); err != nil {
-				return err
-			}
-
-		case ObjectID:
-			if err = oEnc.w.WriteByte(TagObjectID); err != nil {
-				return err
-			}
-			if err = oEnc.encodeString(f.name); err != nil {
-				return err
-			}
-			if err = oEnc.encodeObjectID(v); err != nil {
-				return err
-			}
-
-		case bool:
-			if err = oEnc.w.WriteByte(TagBool); err != nil {
-				return err
-			}
-			if err = oEnc.encodeString(f.name); err != nil {
-				return err
-			}
-			if err = oEnc.encodeBool(v); err != nil {
-				return err
-			}
-
-		case time.Time:
-			if err = oEnc.w.WriteByte(TagTime); err != nil {
-				return err
-			}
-			if err = oEnc.encodeString(f.name); err != nil {
-				return err
-			}
-			if err = oEnc.encodeTime(v); err != nil {
-				return err
-			}
-
-		case NullType:
-			if err = oEnc.w.WriteByte(TagNullType); err != nil {
-				return err
-			}
-			if err = oEnc.encodeString(f.name); err != nil {
-				return err
-			}
-			if err = oEnc.encodeNullType(v); err != nil {
-				return err
-			}
-
-		case Regex:
-			if err = oEnc.w.WriteByte(TagRegex); err != nil {
-				return err
-			}
-			if err = oEnc.encodeString(f.name); err != nil {
-				return err
-			}
-			if err = oEnc.encodeRegex(v); err != nil {
-				return err
-			}
-
 		case int32:
 			if err = oEnc.w.WriteByte(TagInt32); err != nil {
 				return err
@@ -217,17 +157,6 @@ func (enc *Encoder) encodeObject(v *Object) error {
 				return err
 			}
 			if err = oEnc.encodeInt32(v); err != nil {
-				return err
-			}
-
-		case Timestamp:
-			if err = oEnc.w.WriteByte(TagTimestamp); err != nil {
-				return err
-			}
-			if err = oEnc.encodeString(f.name); err != nil {
-				return err
-			}
-			if err = oEnc.encodeTimestamp(v); err != nil {
 				return err
 			}
 
@@ -308,35 +237,7 @@ func (enc *Encoder) encodeString(v string) error {
 	return nil
 }
 
-func (enc *Encoder) encodeBinary(v Binary) error {
-	panic("TODO")
-}
-
-func (enc *Encoder) encodeObjectID(v ObjectID) error {
-	panic("TODO")
-}
-
-func (enc *Encoder) encodeBool(v bool) error {
-	panic("TODO")
-}
-
-func (enc *Encoder) encodeTime(v time.Time) error {
-	panic("TODO")
-}
-
-func (enc *Encoder) encodeNullType(v NullType) error {
-	panic("TODO")
-}
-
-func (enc *Encoder) encodeRegex(v Regex) error {
-	panic("TODO")
-}
-
 func (enc *Encoder) encodeInt32(v int32) error {
-	panic("TODO")
-}
-
-func (enc *Encoder) encodeTimestamp(v Timestamp) error {
 	panic("TODO")
 }
 
