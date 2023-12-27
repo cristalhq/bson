@@ -7,6 +7,7 @@ import (
 	"math"
 	"reflect"
 	"testing"
+	"time"
 )
 
 func TestScalars(t *testing.T) {
@@ -14,17 +15,59 @@ func TestScalars(t *testing.T) {
 		v any
 		b []byte
 	}{{
-		v: 42.13,
+		v: float64(42.13),
 		b: []byte{0x71, 0x3d, 0xa, 0xd7, 0xa3, 0x10, 0x45, 0x40},
 	}, {
 		v: math.Inf(-1),
 		b: []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0xf0, 0xff},
 	}, {
 		v: "foo",
-		b: []byte{0x08, 0x00, 0x00, 0x00, 0x66, 0x6f, 0x6f, 0x00},
+		b: []byte{0x04, 0x00, 0x00, 0x00, 0x66, 0x6f, 0x6f, 0x00},
+	}, {
+		v: "f",
+		b: []byte{0x02, 0x00, 0x00, 0x00, 0x66, 0x00},
+	}, {
+		v: "",
+		b: []byte{0x01, 0x00, 0x00, 0x00, 0x00},
+	}, {
+		v: Binary{B: []byte("foo"), Subtype: BinaryUser},
+		b: []byte{0x03, 0x00, 0x00, 0x00, 0x80, 0x66, 0x6f, 0x6f},
+	}, {
+		v: Binary{B: []byte("f"), Subtype: BinaryUser},
+		b: []byte{0x01, 0x00, 0x00, 0x00, 0x80, 0x66},
+	}, {
+		v: Binary{Subtype: BinaryUser},
+		b: []byte{0x00, 0x00, 0x00, 0x00, 0x80},
+	}, {
+		v: ObjectID{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c},
+		b: []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b, 0x0c},
+	}, {
+		v: false,
+		b: []byte{0x00},
+	}, {
+		v: true,
+		b: []byte{0x01},
+	}, {
+		v: time.Date(2023, 12, 26, 13, 22, 42, 123000000, time.UTC),
+		b: []byte{0x4b, 0xb1, 0x4a, 0xa6, 0x8c, 0x01, 0x00, 0x00},
+	}, {
+		v: time.Unix(0, 0).UTC(),
+		b: []byte{0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00},
+	}, {
+		v: time.Time{},
+		b: []byte{0x00, 0x28, 0xd3, 0xed, 0x7c, 0xc7, 0xff, 0xff},
+	}, {
+		v: Regex{Pattern: "foo", Options: "m"},
+		b: []byte{0x66, 0x6f, 0x6f, 0x00, 0x6d, 0x00},
+	}, {
+		v: Regex{Pattern: "", Options: ""},
+		b: []byte{0x00, 0x00},
 	}, {
 		v: int32(123456789),
 		b: []byte{0x15, 0xcd, 0x5b, 0x07},
+	}, {
+		v: Timestamp(1234567890123456789),
+		b: []byte{0x15, 0x81, 0xe9, 0x7d, 0xf4, 0x10, 0x22, 0x11},
 	}, {
 		v: int64(1234567890123456789),
 		b: []byte{0x15, 0x81, 0xe9, 0x7d, 0xf4, 0x10, 0x22, 0x11},
@@ -32,13 +75,13 @@ func TestScalars(t *testing.T) {
 		t.Run(fmt.Sprintf("%[1]d_%[2]T(%[2]v)", i, tc.v), func(t *testing.T) {
 			s := SizeAny(tc.v)
 			if s != len(tc.b) {
-				t.Fatalf("Size(%[1]T(%[1]v)) = %[2]d, want %[3]d", tc.v, s, len(tc.b))
+				t.Fatalf("Size(%[1]T(%[1]v)) = %[2]d, expected %[3]d", tc.v, s, len(tc.b))
 			}
 
 			actualB := make([]byte, s)
 			EncodeAny(actualB, tc.v)
 			if !bytes.Equal(actualB, tc.b) {
-				t.Errorf("Encode(%[1]T(%[1]v)) = %#[2]v, want %#[3]v", tc.v, actualB, tc.b)
+				t.Errorf("Encode(%[1]T(%[1]v))\n actual   %#[2]v\n expected %#[3]v", tc.v, actualB, tc.b)
 			}
 
 			actualV := reflect.New(reflect.TypeOf(tc.v)).Interface() // actualV := new(T)
@@ -49,7 +92,7 @@ func TestScalars(t *testing.T) {
 
 			actualV = reflect.ValueOf(actualV).Elem().Interface() // *actualV
 			if !reflect.DeepEqual(actualV, tc.v) {
-				t.Errorf("Decode(%v) = %v, want %v", actualB, actualV, tc.v)
+				t.Errorf("Decode(%v)\n actual   %v\n expected %v", actualB, actualV, tc.v)
 			}
 		})
 	}
@@ -63,7 +106,7 @@ func TestFloat64(t *testing.T) {
 		actualB := make([]byte, 8)
 		EncodeFloat64(actualB, v)
 		if !bytes.Equal(actualB, b) {
-			t.Errorf("Encode(%[1]T(%[1]v)) = %#[2]v, want %#[3]v", v, actualB, b)
+			t.Errorf("Encode(%[1]T(%[1]v)) = %#[2]v, expected %#[3]v", v, actualB, b)
 		}
 
 		actualV, err := DecodeFloat64(actualB)
@@ -71,7 +114,7 @@ func TestFloat64(t *testing.T) {
 			t.Fatalf("Decode(%v): %s", actualB, err)
 		}
 		if !reflect.DeepEqual(actualV, v) || !math.Signbit(actualV) {
-			t.Errorf("Decode(%v) = %v, want %v", actualB, actualV, v)
+			t.Errorf("Decode(%v) = %v, expected %v", actualB, actualV, v)
 		}
 	})
 
@@ -101,7 +144,7 @@ func TestFloat64(t *testing.T) {
 				actualB := make([]byte, 8)
 				EncodeFloat64(actualB, tc.v)
 				if !bytes.Equal(actualB, tc.b) {
-					t.Errorf("Encode(%[1]T(%[1]v)) = %#[2]v, want %#[3]v", tc.v, actualB, tc.b)
+					t.Errorf("Encode(%[1]T(%[1]v)) = %#[2]v, expected %#[3]v", tc.v, actualB, tc.b)
 				}
 
 				actualV, err := DecodeFloat64(actualB)
@@ -109,7 +152,7 @@ func TestFloat64(t *testing.T) {
 					t.Fatalf("Decode(%v): %s", actualB, err)
 				}
 				if !math.IsNaN(actualV) {
-					t.Errorf("Decode(%v) = %v, want NaN", actualB, actualV)
+					t.Errorf("Decode(%v) = %v, expected NaN", actualB, actualV)
 				}
 			})
 		}
@@ -123,11 +166,67 @@ func TestScalarsDecodeErrors(t *testing.T) {
 		err error
 	}{{
 		b:   []byte{0x42},
+		v:   float64(0),
+		err: ErrDecodeShortInput,
+	}, {
+		b:   []byte{0x42},
 		v:   string(""),
+		err: ErrDecodeShortInput,
+	}, {
+		b:   []byte{0x42, 0x42, 0x42, 0x42, 0x42},
+		v:   string(""),
+		err: ErrDecodeShortInput,
+	}, {
+		b:   []byte{0x00, 0x00, 0x00, 0x00, 0x42},
+		v:   string(""),
+		err: ErrDecodeInvalidInput,
+	}, {
+		b:   []byte{0x01, 0x00, 0x00, 0x00, 0x42},
+		v:   string(""),
+		err: ErrDecodeInvalidInput,
+	}, {
+		b:   []byte{0x42},
+		v:   Binary{},
+		err: ErrDecodeShortInput,
+	}, {
+		b:   []byte{0x01, 0x00, 0x00, 0x00, 0x80},
+		v:   Binary{},
+		err: ErrDecodeShortInput,
+	}, {
+		b:   []byte{},
+		v:   ObjectID{},
+		err: ErrDecodeShortInput,
+	}, {
+		b:   []byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0a, 0x0b},
+		v:   ObjectID{},
+		err: ErrDecodeShortInput,
+	}, {
+		b:   []byte{},
+		v:   false,
+		err: ErrDecodeShortInput,
+	}, {
+		b:   []byte{0x42},
+		v:   false,
+		err: ErrDecodeInvalidInput,
+	}, {
+		b:   []byte{0x42},
+		v:   time.Time{},
+		err: ErrDecodeShortInput,
+	}, {
+		b:   []byte{0x00},
+		v:   Regex{},
+		err: ErrDecodeShortInput,
+	}, {
+		b:   []byte{0x00, 0x42},
+		v:   Regex{},
 		err: ErrDecodeShortInput,
 	}, {
 		b:   []byte{0x42},
 		v:   int32(0),
+		err: ErrDecodeShortInput,
+	}, {
+		b:   []byte{0x42},
+		v:   Timestamp(0),
 		err: ErrDecodeShortInput,
 	}, {
 		b:   []byte{0x42},
@@ -138,7 +237,7 @@ func TestScalarsDecodeErrors(t *testing.T) {
 			v := reflect.New(reflect.TypeOf(tc.v)).Interface() // v := new(T)
 			err := DecodeAny(tc.b, v)
 			if !errors.Is(err, tc.err) {
-				t.Errorf("Decode(%v): %v, want %v", tc.b, err, tc.err)
+				t.Errorf("Decode(%v): %v, expected %v", tc.b, err, tc.err)
 			}
 		})
 	}
