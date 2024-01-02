@@ -8,6 +8,8 @@ import (
 )
 
 // ScalarType represents a BSON scalar type.
+//
+// CString is not included as it is not a real BSON type.
 type ScalarType interface {
 	float64 | string | Binary | ObjectID | bool | time.Time | NullType | Regex | int32 | Timestamp | int64
 }
@@ -19,7 +21,7 @@ func Size[T ScalarType](v T) int {
 
 // SizeAny returns a size of the encoding of value v in bytes.
 //
-// It panics if v is not a [ScalarType].
+// It panics if v is not a [ScalarType] (including CString).
 func SizeAny(v any) int {
 	switch v := v.(type) {
 	case float64:
@@ -62,7 +64,7 @@ func Encode[T ScalarType](b []byte, v T) {
 // b must be at least Size(v) bytes long; otherwise, EncodeAny will panic.
 // Only b[0:Size(v)] bytes are modified.
 //
-// It panics if v is not a [ScalarType].
+// It panics if v is not a [ScalarType] (including CString).
 func EncodeAny(b []byte, v any) {
 	switch v := v.(type) {
 	case float64:
@@ -105,7 +107,7 @@ func Decode[T ScalarType](b []byte, v *T) error {
 // If there is not enough bytes, DecodeAny will return a wrapped [ErrDecodeShortInput].
 // If the input is otherwise invalid, a wrapped [ErrDecodeInvalidInput] is returned.
 //
-// It panics if v is not a pointer to [ScalarType].
+// It panics if v is not a pointer to [ScalarType] (including CString).
 func DecodeAny(b []byte, v any) error {
 	var err error
 	switch v := v.(type) {
