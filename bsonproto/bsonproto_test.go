@@ -75,24 +75,24 @@ func TestScalars(t *testing.T) {
 		t.Run(fmt.Sprintf("%[1]d_%[2]T(%[2]v)", i, tc.v), func(t *testing.T) {
 			s := SizeAny(tc.v)
 			if s != len(tc.b) {
-				t.Fatalf("Size(%[1]T(%[1]v)) = %[2]d, expected %[3]d", tc.v, s, len(tc.b))
+				t.Fatalf("SizeAny(%[1]T(%[1]v)) = %[2]d, expected %[3]d", tc.v, s, len(tc.b))
 			}
 
 			actualB := make([]byte, s)
 			EncodeAny(actualB, tc.v)
 			if !bytes.Equal(actualB, tc.b) {
-				t.Errorf("Encode(%[1]T(%[1]v))\n actual   %#[2]v\n expected %#[3]v", tc.v, actualB, tc.b)
+				t.Errorf("EncodeAny(%[1]T(%[1]v))\n actual   %#[2]v\n expected %#[3]v", tc.v, actualB, tc.b)
 			}
 
 			actualV := reflect.New(reflect.TypeOf(tc.v)).Interface() // actualV := new(T)
 			err := DecodeAny(actualB, actualV)
 			if err != nil {
-				t.Fatalf("Decode(%v): %s", actualB, err)
+				t.Fatalf("DecodeAny(%v): %s", actualB, err)
 			}
 
 			actualV = reflect.ValueOf(actualV).Elem().Interface() // *actualV
 			if !reflect.DeepEqual(actualV, tc.v) {
-				t.Errorf("Decode(%v)\n actual   %v\n expected %v", actualB, actualV, tc.v)
+				t.Errorf("DecodeAny(%v)\n actual   %v\n expected %v", actualB, actualV, tc.v)
 			}
 		})
 	}
@@ -106,15 +106,15 @@ func TestFloat64(t *testing.T) {
 		actualB := make([]byte, 8)
 		EncodeFloat64(actualB, v)
 		if !bytes.Equal(actualB, b) {
-			t.Errorf("Encode(%[1]T(%[1]v)) = %#[2]v, expected %#[3]v", v, actualB, b)
+			t.Errorf("EncodeFloat64(%[1]T(%[1]v)) = %#[2]v, expected %#[3]v", v, actualB, b)
 		}
 
 		actualV, err := DecodeFloat64(actualB)
 		if err != nil {
-			t.Fatalf("Decode(%v): %s", actualB, err)
+			t.Fatalf("DecodeFloat64(%v): %s", actualB, err)
 		}
 		if !reflect.DeepEqual(actualV, v) || !math.Signbit(actualV) {
-			t.Errorf("Decode(%v) = %v, expected %v", actualB, actualV, v)
+			t.Errorf("DecodeFloat64(%v) = %v, expected %v", actualB, actualV, v)
 		}
 	})
 
@@ -144,19 +144,56 @@ func TestFloat64(t *testing.T) {
 				actualB := make([]byte, 8)
 				EncodeFloat64(actualB, tc.v)
 				if !bytes.Equal(actualB, tc.b) {
-					t.Errorf("Encode(%[1]T(%[1]v)) = %#[2]v, expected %#[3]v", tc.v, actualB, tc.b)
+					t.Errorf("EncodeFloat64(%[1]T(%[1]v)) = %#[2]v, expected %#[3]v", tc.v, actualB, tc.b)
 				}
 
 				actualV, err := DecodeFloat64(actualB)
 				if err != nil {
-					t.Fatalf("Decode(%v): %s", actualB, err)
+					t.Fatalf("DecodeFloat64(%v): %s", actualB, err)
 				}
 				if !math.IsNaN(actualV) {
-					t.Errorf("Decode(%v) = %v, expected NaN", actualB, actualV)
+					t.Errorf("DecodeFloat64(%v) = %v, expected NaN", actualB, actualV)
 				}
 			})
 		}
 	})
+}
+
+func TestCString(t *testing.T) {
+	for _, tc := range []struct {
+		v string
+		b []byte
+	}{{
+		v: "foo",
+		b: []byte{0x66, 0x6f, 0x6f, 0x00},
+	}, {
+		v: "f",
+		b: []byte{0x66, 0x00},
+	}, {
+		v: "",
+		b: []byte{0x00},
+	}} {
+		t.Run(tc.v, func(t *testing.T) {
+			s := SizeCString(tc.v)
+			if s != len(tc.b) {
+				t.Fatalf("SizeCString(%[1]T(%[1]v)) = %[2]d, expected %[3]d", tc.v, s, len(tc.b))
+			}
+
+			actualB := make([]byte, s)
+			EncodeCString(actualB, tc.v)
+			if !bytes.Equal(actualB, tc.b) {
+				t.Errorf("EncodeCString(%[1]q)\n actual   %#[2]v\n expected %#[3]v", tc.v, actualB, tc.b)
+			}
+
+			actualV, err := DecodeCString(actualB)
+			if err != nil {
+				t.Fatalf("DecodeCString(%v): %s", actualB, err)
+			}
+			if actualV != tc.v {
+				t.Errorf("DecodeCString(%v) = %q, expected %q", actualB, actualV, tc.v)
+			}
+		})
+	}
 }
 
 func TestScalarsDecodeErrors(t *testing.T) {
@@ -237,7 +274,7 @@ func TestScalarsDecodeErrors(t *testing.T) {
 			v := reflect.New(reflect.TypeOf(tc.v)).Interface() // v := new(T)
 			err := DecodeAny(tc.b, v)
 			if !errors.Is(err, tc.err) {
-				t.Errorf("Decode(%v): %v, expected %v", tc.b, err, tc.err)
+				t.Errorf("DecodeAny(%v): %v, expected %v", tc.b, err, tc.err)
 			}
 		})
 	}
