@@ -11,7 +11,7 @@ import (
 //
 // CString is not included as it is not a real BSON type.
 type ScalarType interface {
-	float64 | string | Binary | ObjectID | bool | time.Time | NullType | Regex | int32 | Timestamp | int64
+	float64 | string | Binary | ObjectID | bool | time.Time | NullType | Regex | int32 | Timestamp | int64 | Decimal128
 }
 
 // Size returns a size of the encoding of value v in bytes.
@@ -46,6 +46,8 @@ func SizeAny(v any) int {
 		return SizeTimestamp
 	case int64:
 		return SizeInt64
+	case Decimal128:
+		return SizeDecimal128
 	default:
 		panic(fmt.Sprintf("unsupported type %T", v))
 	}
@@ -89,6 +91,8 @@ func EncodeAny(b []byte, v any) {
 		EncodeTimestamp(b, v)
 	case int64:
 		EncodeInt64(b, v)
+	case Decimal128:
+		EncodeDecimal128(b, v)
 	default:
 		panic(fmt.Sprintf("unsupported type %T", v))
 	}
@@ -133,6 +137,8 @@ func DecodeAny(b []byte, v any) error {
 		*v, err = DecodeTimestamp(b)
 	case *int64:
 		*v, err = DecodeInt64(b)
+	case *Decimal128:
+		*v, err = DecodeDecimal128(b)
 	default:
 		panic(fmt.Sprintf("unsupported type %T", v))
 	}
